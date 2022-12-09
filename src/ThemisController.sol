@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
+import {IInterchainAccountRouter} from "@hyperlane-xyz/core/interfaces/IInterchainAccountRouter.sol";
+
 import {Auction} from "src/lib/Auction.sol";
 import {LibBalanceProof} from "src/lib/LibBalanceProof.sol";
 
 import {IThemis} from "src/IThemis.sol";
 import {ThemisVault} from "src/ThemisVault.sol";
 
-contract ThemisController is IThemis {
 
+contract ThemisController is IThemis {
 
     bytes32 auction;
     mapping(address => bool) revealedVault;
@@ -32,8 +34,11 @@ contract ThemisController is IThemis {
         bytes blockHeaderRLP;
     }
 
+    IInterchainAccountRouter accountRouter;
 
-    constructor() {
+
+    constructor(address accountRouterAddress_) {
+        accountRouter = IInterchainAccountRouter(accountRouterAddress_);
     }
 
     function connectAuction(uint32 domain_, address contract_) external {
@@ -74,19 +79,23 @@ contract ThemisController is IThemis {
             storedBlockHash,
             vault
         );
-        if (vaultBalance < bidAmount_) {
-            new ThemisVault{salt: salt_}(
-                auction,
-                bidder_,
-                bidAmount_
-            );
-            isCollateralized = false;
-        }
 
-        if (isCollateralized) {
-            // _dispatch();
-        }
+        accountRouter.dispatch(
+            Auction.getDomain(auction),
+            Auction.getAuctionAddress(auction),
+            // TODO: encode call
+            abi.encodePacked(
+                "placeBid(address,uint64,bytes32)",
+                bidder_, vaultBalance, salt_
+            )
+        );
 
+        emit BidProvenRemote(
+            block.timestamp,
+            auction,
+            bidder_,
+            vaultBalance
+        );
     }
 
     function getVaultAddress(

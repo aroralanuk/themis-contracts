@@ -16,6 +16,14 @@ interface IThemis {
         uint64 revealPeriod,
         uint128 reservePrice
     );
+
+    event BidProvenRemote(
+            uint256 timestamp,
+            bytes32 indexed auction,
+            address indexed bidder_,
+            uint256 vaultAmount_
+    );
+
     event RevealStarted();
 
 }

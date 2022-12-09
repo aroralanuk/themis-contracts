@@ -10,7 +10,7 @@ contract ThemisVault {
     using SafeTransferLib for address;
 
     constructor(
-        bytes32 auction,
+        // bytes32 auction,
         address bidder,
         uint128 /* bidValue */
     ) {
