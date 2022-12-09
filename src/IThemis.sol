@@ -6,6 +6,8 @@ pragma solidity ^0.8.15;
 interface IThemis {
     error AlreadyInitialized();
     error BidAlreadyRevealed();
+    error RevealAlreadyStarted();
+    error NotYetRevealBlock();
 
     event AuctionInitialized(
         address indexed auction,
@@ -14,4 +16,6 @@ interface IThemis {
         uint64 revealPeriod,
         uint128 reservePrice
     );
+    event RevealStarted();
+
 }
