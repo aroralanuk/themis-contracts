@@ -5,6 +5,7 @@ pragma solidity ^0.8.15;
 /// @title Custom errors for ThemisAuction
 interface IThemis {
     error AlreadyInitialized();
+    error BidAlreadyRevealed();
 
     event AuctionInitialized(
         address indexed auction,
