@@ -30,7 +30,7 @@ contract ThemisAuction is IThemis, ERC721 {
         uint64 revealPeriod_,
         uint128 reservePrice_
     ) external {
-        if (endOfBiddingPeriod == 0) revert AlreadyInitialized();
+        if (endOfBiddingPeriod != 0) revert AlreadyInitialized();
 
         endOfBiddingPeriod = uint64(block.timestamp) + bidPeriod_;
         endOfRevealPeriod =

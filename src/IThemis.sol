@@ -4,6 +4,8 @@ pragma solidity ^0.8.15;
 
 /// @title Custom errors for ThemisAuction
 interface IThemis {
+    error AccessControl();
+    error AuctionAlreadyConnected();
     error AlreadyInitialized();
     error BidAlreadyRevealed();
     error RevealAlreadyStarted();

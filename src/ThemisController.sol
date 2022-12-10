@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
+import "forge-std/console.sol";
+
 import {IInterchainAccountRouter} from "@hyperlane-xyz/core/interfaces/IInterchainAccountRouter.sol";
 
 import {Auction} from "src/lib/Auction.sol";
@@ -11,12 +13,12 @@ import {ThemisVault} from "src/ThemisVault.sol";
 
 
 contract ThemisController is IThemis {
-
-    bytes32 auction;
+    bytes32 public auction;
     mapping(address => bool) revealedVault;
 
-    uint32 domain;
-    uint96 revealStartBlock;
+    address owner;
+
+    uint96 public revealStartBlock;
     bytes32 storedBlockHash;
 
     bool isCollateralized;
@@ -36,16 +38,24 @@ contract ThemisController is IThemis {
 
     IInterchainAccountRouter accountRouter;
 
+    modifier onlyOwner() {
+        if (msg.sender != owner) revert AccessControl();
+        _;
+    }
 
     constructor(address accountRouterAddress_) {
         accountRouter = IInterchainAccountRouter(accountRouterAddress_);
+        owner = msg.sender;
     }
 
-    function connectAuction(uint32 domain_, address contract_) external {
+    function connectAuction(uint32 domain_, address contract_)
+        onlyOwner external
+    {
+        if (auction != bytes32(0)) revert AuctionAlreadyConnected();
         auction = Auction.format(domain_, contract_);
     }
 
-    function startReveal() external {
+    function startReveal() external onlyOwner {
         if (storedBlockHash != bytes32(0)) revert RevealAlreadyStarted();
         uint256 revealStartBlockCached = revealStartBlock;
         if (block.number <= revealStartBlockCached) revert NotYetRevealBlock();
