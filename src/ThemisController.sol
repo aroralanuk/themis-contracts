@@ -9,7 +9,9 @@ import {Auction} from "src/lib/Auction.sol";
 import {LibBalanceProof} from "src/lib/LibBalanceProof.sol";
 
 import {IThemis} from "src/IThemis.sol";
+import {ThemisAuction} from "src/ThemisAuction.sol";
 import {ThemisVault} from "src/ThemisVault.sol";
+
 
 
 contract ThemisController is IThemis {
@@ -19,7 +21,7 @@ contract ThemisController is IThemis {
     address owner;
 
     uint96 public revealStartBlock;
-    bytes32 storedBlockHash;
+    bytes32 public storedBlockHash;
 
     bool isCollateralized;
 
@@ -72,7 +74,7 @@ contract ThemisController is IThemis {
         uint128 bidAmount_,
         bytes32 salt_,
         CollateralizationProof calldata proof_
-    ) external {
+    ) external returns (uint256){
         address vault = getVaultAddress(
             auction,
             bidder_,
@@ -83,20 +85,22 @@ contract ThemisController is IThemis {
         if (revealedVault[vault]) revert BidAlreadyRevealed();
         revealedVault[vault] = true;
 
-        uint256 vaultBalance = _getProvenAccountBalance(
-            proof_.accountMerkleProof,
-            proof_.blockHeaderRLP,
-            storedBlockHash,
-            vault
+        uint128 vaultBalance = uint128(
+            _getProvenAccountBalance(
+                proof_.accountMerkleProof,
+                proof_.blockHeaderRLP,
+                storedBlockHash,
+                vault
+            )
         );
 
-        accountRouter.dispatch(
+        address auctionContract = Auction.getAuctionAddress(auction);
+        uint256 res = accountRouter.dispatch(
             Auction.getDomain(auction),
-            Auction.getAuctionAddress(auction),
-            // TODO: encode call
-            abi.encodePacked(
-                "placeBid(address,uint64,bytes32)",
-                bidder_, vaultBalance, salt_
+            auctionContract,
+            abi.encodeCall(
+                ThemisAuction(auctionContract).placeBid,
+                ( bidder_, vaultBalance )
             )
         );
 
@@ -106,6 +110,8 @@ contract ThemisController is IThemis {
             bidder_,
             vaultBalance
         );
+
+        return res;
     }
 
     function getVaultAddress(

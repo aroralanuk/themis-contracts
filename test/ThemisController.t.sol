@@ -46,7 +46,12 @@ contract ThemisControllerTest is BaseTest {
     ThemisAuction internal auction;
     MockThemisController internal controller;
 
-    function setUp() public {
+    function setUp() public override {
+        super.setUp();
+
+        vm.selectFork(originFork);
+        // vm.startBroadcast(pk);
+
         auction = new ThemisAuction("Ethereal Encounters", "EE");
         auction.initialize(
             uint64(1 hours),
@@ -54,8 +59,10 @@ contract ThemisControllerTest is BaseTest {
             uint128(0.1 ether)
         );
 
-        vm.selectFork(originFork);
-        vm.startBroadcast(pk);
+        vm.makePersistent(address(auction));
+        assert(vm.isPersistent(address(auction)));
+        vm.selectFork(remoteFork);
+        assert(vm.isPersistent(address(auction)));
 
         router = IInterchainAccountRouter(MOONBASE_ALPHA_ICA);
 
@@ -63,45 +70,66 @@ contract ThemisControllerTest is BaseTest {
     }
 
     function testConnectAuction() public {
-        controller.connectAuction(remoteDomain, address(auction));
-        assertEq(
-            controller.auction(),
-            Auction.format(remoteDomain, address(auction))
-        );
-
-        vm.stopBroadcast();
-    }
-
-    function testConnectAuctionRepeat_Fail() public {
-        controller.connectAuction(remoteDomain, address(auction));
-
-        vm.expectRevert();
         controller.connectAuction(originDomain, address(auction));
         assertEq(
             controller.auction(),
-            Auction.format(remoteDomain, address(auction))
+            Auction.format(originDomain, address(auction))
         );
+    }
 
-        vm.stopBroadcast();
+    function testConnectAuctionRepeat_Fail() public {
+        controller.connectAuction(originDomain, address(auction));
+
+        vm.expectRevert();
+        controller.connectAuction(remoteDomain, address(auction));
+        assertEq(
+            controller.auction(),
+            Auction.format(originDomain, address(auction))
+        );
     }
 
     function testConnectAuction_FailAccessControl() public {
-        switchBroadCast(alice_pk);
 
+        vm.startPrank(alice);
         vm.expectRevert();
         controller.connectAuction(originDomain, address(auction));
         assertEq(controller.auction(), Auction.format(0, address(0)));
 
-        vm.stopBroadcast();
+        vm.stopPrank();
     }
 
     function testStartReveal() public {
-        controller.connectAuction(remoteDomain, address(auction));
-
+        controller.connectAuction(originDomain, address(auction));
         controller.startReveal();
-        console.log("revealStartBlock: %s", controller.revealStartBlock());
-        // assertEq(controller.revealStartBlock(), vm.blockNumber());
 
-        vm.stopBroadcast();
+        assertEq(controller.revealStartBlock(), block.number);
+        assertEq(controller.storedBlockHash(), blockhash(block.number - 256));
+    }
+
+    function testStartRevealRepeat_Fail() public {
+        controller.connectAuction(originDomain, address(auction));
+        controller.startReveal();
+
+        vm.expectRevert();
+        controller.startReveal();
+    }
+
+    function testRevealBid() public {
+        controller.connectAuction(originDomain, address(auction));
+        controller.startReveal();
+
+        // TODO: fix this
+        // controller.revealBid(address(this), 1 ether, genBytes32(), nullProof());
+
+        // cons
+        // assertEq(controller.bids(1 ether), 1);
+    }
+
+    function nullProof()
+        private
+        pure
+        returns (ThemisController.CollateralizationProof memory proof)
+    {
+        return proof;
     }
 }
