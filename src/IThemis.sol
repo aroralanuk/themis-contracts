@@ -8,7 +8,9 @@ interface IThemis {
     error AuctionAlreadyConnected();
     error AlreadyInitialized();
     error BidAlreadyRevealed();
+    error BidLowerThanReserve();
     error RevealAlreadyStarted();
+    error NotInRevealPeriod();
     error NotYetRevealBlock();
 
     event AuctionInitialized(

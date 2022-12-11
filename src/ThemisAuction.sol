@@ -46,8 +46,16 @@ contract ThemisAuction is IThemis, ERC721 {
         );
     }
 
-    function placeBid(address bidder_, uint128 bidAmount_) external {}
+    function placeBid(address bidder_, uint128 bidAmount_) external {
+        if (block.timestamp > endOfBiddingPeriod ||
+        block.timestamp > endOfRevealPeriod) revert NotInRevealPeriod();
+        if (bidAmount_ < reservePrice) revert BidLowerThanReserve();
 
+        // insert in order of bids
+
+    }
+
+    // TODO: late
     function lateRevealBid() external {}
 
     function endAuction() external {}
