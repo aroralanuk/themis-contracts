@@ -8,4 +8,4 @@
 [submodule "lib/hyperlane-monorepo"]
 	path = lib/hyperlane-monorepo
 	url = https://github.com/hyperlane-xyz/hyperlane-monorepo
-	branch = v0.5.5
+	branch = main
