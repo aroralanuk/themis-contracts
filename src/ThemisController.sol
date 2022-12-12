@@ -99,7 +99,7 @@ contract ThemisController is IThemis {
             Auction.getDomain(auction),
             auctionContract,
             abi.encodeCall(
-                ThemisAuction(auctionContract).placeBid,
+                ThemisAuction(auctionContract).checkBid,
                 ( bidder_, vaultBalance )
             )
         );

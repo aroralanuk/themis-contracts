@@ -6,11 +6,14 @@ pragma solidity ^0.8.15;
 interface IThemis {
     error AccessControl();
     error AuctionAlreadyConnected();
+    error AuctionNotOver();
     error AlreadyInitialized();
     error BidAlreadyRevealed();
     error BidLowerThanReserve();
+    error InvalidTokenId();
     error RevealAlreadyStarted();
     error NotInRevealPeriod();
+    error NotReserved();
     error NotYetRevealBlock();
 
     event AuctionInitialized(
@@ -27,7 +30,13 @@ interface IThemis {
             address indexed bidder_,
             uint256 vaultAmount_
     );
+    event BidRevealed(
+        address indexed auction,
+        address indexed bidder,
+        uint128 bidAmount
+    );
 
     event RevealStarted();
+    event AuctionEnded();
 
 }

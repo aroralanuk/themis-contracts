@@ -52,7 +52,7 @@ contract ThemisControllerTest is BaseTest {
         vm.selectFork(originFork);
         // vm.startBroadcast(pk);
 
-        auction = new ThemisAuction("Ethereal Encounters", "EE");
+        auction = new ThemisAuction("Ethereal Encounters", "EE", 10_000);
         auction.initialize(
             uint64(1 hours),
             uint64(2 hours),

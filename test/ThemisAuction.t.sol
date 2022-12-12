@@ -13,6 +13,6 @@ contract ThemisAuctionTest is Test {
     ThemisAuction internal auction;
 
     function setUp() public {
-        auction = new ThemisAuction("Ethereal Encounters", "EE");
+        auction = new ThemisAuction("Ethereal Encounters", "EE", 10_000);
     }
 }
