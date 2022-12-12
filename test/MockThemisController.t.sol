@@ -114,17 +114,6 @@ contract ThemisControllerTest is BaseTest {
         controller.startReveal();
     }
 
-    function testRevealBid() public {
-        controller.connectAuction(originDomain, address(auction));
-        controller.startReveal();
-
-        // TODO: fix this
-        // controller.revealBid(address(this), 1 ether, genBytes32(), nullProof());
-
-        // cons
-        // assertEq(controller.bids(1 ether), 1);
-    }
-
     function nullProof()
         private
         pure

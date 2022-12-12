@@ -20,7 +20,7 @@ contract ThemisAuction is IThemis, ERC721 {
 
     uint64 public endOfBiddingPeriod;
     uint64 public endOfRevealPeriod;
-    uint128 reservePrice;
+    uint128 public reservePrice;
 
     mapping(uint256 => uint64) highestBid;
     mapping(uint256 => address) highestBidVault;
@@ -80,6 +80,10 @@ contract ThemisAuction is IThemis, ERC721 {
         );
     }
 
+    function testICA(address bidder_, uint128 amt) external returns (bool) {
+        return true;
+    }
+
     // TODO: later
     function lateRevealBid() external {}
 
@@ -99,6 +103,11 @@ contract ThemisAuction is IThemis, ERC721 {
 
     function _reserve(address bidder_, uint256 id_) internal {
         reserved[id_] = bidder_;
+    }
+
+
+    function mint(uint256 id) external {
+        _mint(msg.sender, id);
     }
 
     function _mint(address to, uint256 id) internal override {

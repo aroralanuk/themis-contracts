@@ -55,6 +55,16 @@ library Bids {
         }
     }
 
+    function getAllBids(
+        Heap storage self
+    ) internal view returns (Node[] memory) {
+        Node[] memory bids = new Node[](self.totalBids);
+        for (uint32 i = 0; i < self.totalBids; i++) {
+            bids[i] = self.index[self.array[i]];
+        }
+        return bids;
+    }
+
     function swap(
         Heap storage self,
         uint32 i,

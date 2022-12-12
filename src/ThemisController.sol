@@ -11,6 +11,7 @@ import {LibBalanceProof} from "src/lib/LibBalanceProof.sol";
 import {IThemis} from "src/IThemis.sol";
 import {ThemisAuction} from "src/ThemisAuction.sol";
 import {ThemisVault} from "src/ThemisVault.sol";
+import {Call} from "@hyperlane-xyz/core/contracts/Call.sol";
 
 
 
@@ -37,6 +38,11 @@ contract ThemisController is IThemis {
         bytes[] accountMerkleProof;
         bytes blockHeaderRLP;
     }
+
+    // struct Call {
+    //     address to;
+    //     bytes data;
+    // }
 
     IInterchainAccountRouter accountRouter;
 
@@ -95,13 +101,16 @@ contract ThemisController is IThemis {
         );
 
         address auctionContract = Auction.getAuctionAddress(auction);
-        uint256 res = accountRouter.dispatch(
+
+        Call[] memory calls = new Call[](1);
+        calls[0] = Call({
+            to: auctionContract,
+            data: abi.encodeCall(ThemisAuction(auctionContract).testICA, (bidder_, vaultBalance))
+        });
+
+        accountRouter.dispatch(
             Auction.getDomain(auction),
-            auctionContract,
-            abi.encodeCall(
-                ThemisAuction(auctionContract).checkBid,
-                ( bidder_, vaultBalance )
-            )
+            calls
         );
 
         emit BidProvenRemote(
@@ -110,8 +119,6 @@ contract ThemisController is IThemis {
             bidder_,
             vaultBalance
         );
-
-        return res;
     }
 
     function getVaultAddress(
