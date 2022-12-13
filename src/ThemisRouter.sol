@@ -3,7 +3,7 @@ pragma solidity ^0.8.15;
 
 import {Router} from "@hyperlane-xyz/core/contracts/Router.sol";
 
-contract ThemisRouter is Router {
+contract ThemisRouter is Router  {
     // remote.dispatch -> origin.handle -> auction.checkBid -> origin.dispatch -> remote.handle -> vault.refund
 
     // auction.distribute -> origin.dispatch -> remote.handle -> remote.dispatchWithTokens -> origin.handleWithTokens -> auction.mint
@@ -21,6 +21,12 @@ contract ThemisRouter is Router {
     );
 
     event HandledCall (
+        address sender,
+        address target,
+        bytes data
+    );
+
+    event HandledCallback (
         address sender,
         address target,
         bytes data
@@ -69,6 +75,8 @@ contract ThemisRouter is Router {
         );
     }
 
+
+
     function _handle(
         uint32 _origin,
         bytes32 /* _sender */,
@@ -91,18 +99,28 @@ contract ThemisRouter is Router {
                 _origin,
                 abi.encode(
                     Action.RESOLVE,
-                    sender,
-                    // fixme: call format
-                    abi.encodeWithSelector(
-                        bytes4(call.callback),
-                        result
-                    )
+                    address(this),
+                    Call({
+                        to: sender,
+                        data: abi.encodeWithSelector(
+                            bytes4(call.callback),
+                            result
+                        ),
+                        callback: "0x00"
+                    })
                 )
             );
 
             emit HandledCall(sender, call.to, result);
         } else if (action == Action.RESOLVE) {
-            // TODO: implement
+            (bool success, bytes memory result) = call.to.call(call.data);
+
+            require(
+                success,
+                _encodeError(result, call.to)
+            );
+
+            emit HandledCallback(sender, call.to, result);
         }
     }
 
