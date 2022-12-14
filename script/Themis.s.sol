@@ -13,7 +13,6 @@ contract ThemisScript is Script {
 
     function run() public {
         vm.broadcast(pk);
-        console.log(vm.addr(pk));
 
         auction = new ThemisAuction("Ethereal Encounters", "EE", 10_000);
 

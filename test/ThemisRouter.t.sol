@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
+import "forge-std/console.sol";
+
 import {TypeCasts} from "@hyperlane-xyz/core/contracts/libs/TypeCasts.sol";
 
 import {ThemisRouter} from "src/ThemisRouter.sol";
@@ -31,6 +33,7 @@ contract ThemisRouterTest is BaseTest {
 
         hubRouter = new ThemisRouter();
         spokeRouter = new ThemisRouter();
+        recipient = new MockRecipient();
 
         hubRouter.initialize(
             address(testEnv.mailboxes(hubDomain))
@@ -47,17 +50,9 @@ contract ThemisRouterTest is BaseTest {
 
         spokeRouter.enrollRemoteRouter(
             hubDomain,
-            TypeCasts.addressToBytes32(address(spokeRouter))
+            TypeCasts.addressToBytes32(address(hubRouter))
         );
     }
-
-// function dispatchWithCallback(
-//         uint32 _destinationDomain,
-//         address _target,
-//         bytes calldata data,
-//         bytes calldata callback
-//     )
-
 
     function testCallBack() public {
         bytes32 _salt = genBytes32();
@@ -67,14 +62,35 @@ contract ThemisRouterTest is BaseTest {
             address(recipient),
             abi.encodeCall(
                 recipient.exampleFunction,
-                (address(this), 100e6, _salt)
+                (address(this), 1000e6, _salt)
             ),
             abi.encodePacked(this.exampleCallback.selector)
         );
+        testEnv.processNextPendingMessageFromDestination();
         testEnv.processNextPendingMessage();
+        assertEq(result, true);
     }
 
-    function exampleCallback() public {
-        result = true;
+    function testCallRevert() public {
+        bytes32 _salt = genBytes32();
+
+        spokeRouter.dispatchWithCallback(
+            hubDomain,
+            address(recipient),
+            abi.encodeCall(
+                recipient.exampleFunction,
+                (address(0x0), 1000e6, _salt)
+            ),
+            abi.encodePacked(this.exampleCallback.selector)
+        );
+
+        vm.expectRevert();
+        testEnv.processNextPendingMessageFromDestination();
+
+        assertEq(result, false);
+    }
+
+    function exampleCallback(bool arg1, address arg2, uint128 arg3, bytes32 arg4) public {
+        result = arg1 || arg2 == address(0x0) || arg3 %10 == 0 || arg4 == bytes32(0x0);
     }
 }

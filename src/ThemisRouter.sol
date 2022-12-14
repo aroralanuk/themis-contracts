@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
+import "forge-std/console.sol";
+
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -72,7 +74,6 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
         bytes calldata data,
         bytes calldata callback
     ) external returns (bytes32 messageId) {
-
         messageId = _dispatch(
             _destinationDomain,
             abi.encode(
@@ -146,7 +147,6 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
         bytes calldata _message
     ) internal override {
 
-
         Action action = abi.decode(_message, (Action));
 
         if (action == Action.DISPATCH) {
@@ -159,7 +159,7 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
 
             require(
                 success,
-                _encodeError(result, call.to)
+                "ERROR: destination call failed"
             );
 
             _dispatch(
@@ -169,10 +169,7 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
                     address(this),
                     Call({
                         to: sender,
-                        data: abi.encodeWithSelector(
-                            bytes4(call.callback),
-                            result
-                        ),
+                        data: bytes.concat(call.callback, result),
                         callback: "0x00"
                     })
                 )
@@ -189,7 +186,7 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
 
             require(
                 success,
-                _encodeError(result, call.to)
+                "ERROR: origin callback failed"
             );
 
             emit HandledCallback(sender, call.to, result);
@@ -226,15 +223,13 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
     }
 
     function _encodeError(bytes memory _result, address _to)
-        internal pure returns (string memory)
+        internal returns (string memory)
     {
-        return string(
-            abi.encodePacked(
-                "Call failed: ",
-                _result,
-                " for ",
-                _to
-            )
+        return string.concat(
+            "Error calling ",
+            string(abi.encodePacked(_to)),
+            ": ",
+            string(_result)
         );
     }
 

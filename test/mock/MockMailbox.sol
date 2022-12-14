@@ -4,6 +4,8 @@ pragma solidity ^0.8.0;
 import {TypeCasts} from "@hyperlane-xyz/core/contracts/libs/TypeCasts.sol";
 import {IMessageRecipient} from "@hyperlane-xyz/core/interfaces/IMessageRecipient.sol";
 
+import "forge-std/console.sol";
+
 contract MockMailbox {
     using TypeCasts for address;
     using TypeCasts for bytes32;

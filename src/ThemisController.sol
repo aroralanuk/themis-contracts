@@ -62,7 +62,6 @@ contract ThemisController is IThemis {
         if (storedBlockHash != bytes32(0)) revert RevealAlreadyStarted();
         uint256 revealStartBlockCached = revealStartBlock;
         if (block.number <= revealStartBlockCached) revert NotYetRevealBlock();
-        console.log("O/U: ", block.number);
         storedBlockHash = blockhash(
             max(block.number - 256, revealStartBlockCached)
         );
