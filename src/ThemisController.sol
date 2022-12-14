@@ -3,7 +3,6 @@ pragma solidity ^0.8.15;
 
 import "forge-std/console.sol";
 
-import {IInterchainAccountRouter} from "@hyperlane-xyz/core/interfaces/IInterchainAccountRouter.sol";
 
 import {Auction} from "src/lib/Auction.sol";
 import {LibBalanceProof} from "src/lib/LibBalanceProof.sol";
@@ -11,6 +10,7 @@ import {LibBalanceProof} from "src/lib/LibBalanceProof.sol";
 import {IThemis} from "src/IThemis.sol";
 import {ThemisAuction} from "src/ThemisAuction.sol";
 import {ThemisVault} from "src/ThemisVault.sol";
+import {ThemisRouter} from "src/ThemisRouter.sol";
 import {Call} from "@hyperlane-xyz/core/contracts/Call.sol";
 
 
@@ -39,20 +39,15 @@ contract ThemisController is IThemis {
         bytes blockHeaderRLP;
     }
 
-    // struct Call {
-    //     address to;
-    //     bytes data;
-    // }
-
-    IInterchainAccountRouter accountRouter;
+    ThemisRouter router;
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert AccessControl();
         _;
     }
 
-    constructor(address accountRouterAddress_) {
-        accountRouter = IInterchainAccountRouter(accountRouterAddress_);
+    constructor(address routerAddress_) {
+        router = ThemisRouter(routerAddress_);
         owner = msg.sender;
     }
 
@@ -67,6 +62,7 @@ contract ThemisController is IThemis {
         if (storedBlockHash != bytes32(0)) revert RevealAlreadyStarted();
         uint256 revealStartBlockCached = revealStartBlock;
         if (block.number <= revealStartBlockCached) revert NotYetRevealBlock();
+        console.log("O/U: ", block.number);
         storedBlockHash = blockhash(
             max(block.number - 256, revealStartBlockCached)
         );
@@ -80,7 +76,7 @@ contract ThemisController is IThemis {
         uint128 bidAmount_,
         bytes32 salt_,
         CollateralizationProof calldata proof_
-    ) external returns (uint256){
+    ) external {
         address vault = getVaultAddress(
             auction,
             bidder_,
@@ -102,15 +98,11 @@ contract ThemisController is IThemis {
 
         address auctionContract = Auction.getAuctionAddress(auction);
 
-        Call[] memory calls = new Call[](1);
-        calls[0] = Call({
-            to: auctionContract,
-            data: abi.encodeCall(ThemisAuction(auctionContract).testICA, (bidder_, vaultBalance))
-        });
-
-        accountRouter.dispatch(
+        router.dispatchWithCallback(
             Auction.getDomain(auction),
-            calls
+            auctionContract,
+            abi.encodeCall(ThemisAuction(auctionContract).checkBid, (bidder_, vaultBalance, salt_)),
+            abi.encodePacked(this.revealBidCallback.selector)
         );
 
         emit BidProvenRemote(
@@ -119,6 +111,37 @@ contract ThemisController is IThemis {
             bidder_,
             vaultBalance
         );
+    }
+
+    function revealBidCallback(
+        address _bidder,
+        uint128 _bidAmount,
+        bytes32 _salt,
+        bool success
+    ) public {
+        address auctionContract = Auction.getAuctionAddress(auction);
+
+        if (!success) {
+            new ThemisVault{salt: _salt}(
+                auctionContract, // fixme: actually token address
+                _bidder,
+                _bidAmount
+            );
+
+            emit BidFailed(
+                block.timestamp,
+                auctionContract,
+                _bidder,
+                _bidAmount
+            );
+        } else {
+            emit BidSuccessfullyPlaced(
+                block.timestamp,
+                auctionContract,
+                _bidder,
+                _bidAmount
+            );
+        }
     }
 
     function getVaultAddress(

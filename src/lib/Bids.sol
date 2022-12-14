@@ -30,13 +30,13 @@ library Bids {
         address bidderAddress_,
         uint128 bidAmount_,
         uint64 bidTimestamp_
-    ) internal {
+    ) internal returns (bool) {
 
         if (self.totalBids == self.array.length
             && bidAmount_ > self.index[self.array[0]].bidAmount) {
             revert BidTooLow();
         } else if (self.totalBids == self.array.length) {
-            return;
+            return false;
         } else {
             self.array[self.totalBids] = self.totalBids + 1;
             self.index[self.totalBids + 1] = Node(
@@ -53,6 +53,8 @@ library Bids {
             swap(self, i, (i - 1) / 2);
             i = (i - 1) / 2;
         }
+
+        return true;
     }
 
     function getAllBids(

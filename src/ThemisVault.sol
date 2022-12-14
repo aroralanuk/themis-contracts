@@ -7,12 +7,12 @@ import {ThemisController} from "./ThemisController.sol";
 /// @title A contract deployed via `CREATE2` by the `ThemisController` contract.
 /// Bidders send their collateral to the address of the SneakyVault before it is deployed.
 contract ThemisVault {
-    using SafeTransferLib for address;
+    using SafeTransferLib for ERC20;
 
     constructor(
-        // bytes32 auction,
+        address token,
         address bidder,
-        uint128 /* bidValue */
+        uint128 bidValue
     ) {
         // This contract should be deployed via `CREATE2` by a `ThemisController` contract
         ThemisController controller = ThemisController(msg.sender);
@@ -25,8 +25,6 @@ contract ThemisVault {
         //     assert(address(this).balance >= bidAmount);
         //     controller.getSeller(tokenContract, tokenId).safeTransferETH(bidAmount);
         // }
-
-        // Self-destruct, returning excess ETH to the bidder
-        selfdestruct(payable(bidder));
+        ERC20(token).safeTransfer(bidder, bidValue);
     }
 }

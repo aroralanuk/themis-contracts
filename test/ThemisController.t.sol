@@ -3,12 +3,16 @@ pragma solidity ^0.8.15;
 
 import "forge-std/console.sol";
 
+import {MockERC20} from "test/mock/MockERC20.sol";
+
 import {IInterchainAccountRouter} from "@hyperlane-xyz/core/interfaces/IInterchainAccountRouter.sol";
 
 import {Auction} from "src/lib/Auction.sol";
 
+import {ThemisRouter} from "src/ThemisRouter.sol";
 import {ThemisAuction} from "src/ThemisAuction.sol";
 import {ThemisController} from "src/ThemisController.sol";
+
 
 import {BaseTest} from "./utils/BaseTest.sol";
 
@@ -41,16 +45,14 @@ contract MockThemisController is ThemisController {
 
 
 contract ThemisControllerTest is BaseTest {
-    IInterchainAccountRouter internal router;
+    ThemisRouter internal router = new ThemisRouter();
 
     ThemisAuction internal auction;
     MockThemisController internal controller;
 
     function setUp() public override {
         super.setUp();
-
-        vm.selectFork(originFork);
-        // vm.startBroadcast(pk);
+        vm.roll(block.number + 1_000_000);
 
         auction = new ThemisAuction("Ethereal Encounters", "EE", 10_000);
         auction.initialize(
@@ -59,12 +61,8 @@ contract ThemisControllerTest is BaseTest {
             uint128(0.1 ether)
         );
 
-        vm.makePersistent(address(auction));
-        assert(vm.isPersistent(address(auction)));
-        vm.selectFork(remoteFork);
-        assert(vm.isPersistent(address(auction)));
 
-        router = IInterchainAccountRouter(MOONBASE_ALPHA_ICA);
+        router = new ThemisRouter();
 
         controller = new MockThemisController(address(router));
     }
@@ -89,8 +87,8 @@ contract ThemisControllerTest is BaseTest {
     }
 
     function testConnectAuction_FailAccessControl() public {
-
         vm.startPrank(alice);
+
         vm.expectRevert();
         controller.connectAuction(originDomain, address(auction));
         assertEq(controller.auction(), Auction.format(0, address(0)));
@@ -112,6 +110,39 @@ contract ThemisControllerTest is BaseTest {
 
         vm.expectRevert();
         controller.startReveal();
+    }
+
+    function testRevealBid() public {
+        controller.connectAuction(originDomain, address(auction));
+
+        vm.startPrank(alice);
+        bytes32 salt = genBytes32();
+        commitBid(alice, 100e6, salt);
+        skip(1.5 hours);
+        vm.stopPrank();
+
+        controller.startReveal();
+
+        // TODO: fix pre-setup router
+        controller.revealBid(alice, 100e6, salt, nullProof());
+    }
+
+
+    function commitBid(
+        address from,
+        uint128 bidValue,
+        bytes32 salt
+    )
+        private
+        returns (address vault)
+    {
+        vault = controller.getVaultAddress(
+            Auction.format(originDomain, address(auction)),
+            from,
+            bidValue,
+            salt
+        );
+        MockERC20(usdc).transfer(vault, bidValue);
     }
 
     function nullProof()

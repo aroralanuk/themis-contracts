@@ -119,7 +119,7 @@ contract ThemisControllerTest is BaseTest {
         controller.startReveal();
 
         // TODO: fix this
-        controller.revealBid(address(this), 1 ether, genBytes32(), nullProof());
+        // controller.revealBid(address(this), 1 ether, genBytes32(), nullProof());
 
         // cons
         // assertEq(controller.bids(1 ether), 1);

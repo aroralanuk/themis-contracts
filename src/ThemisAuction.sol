@@ -60,13 +60,13 @@ contract ThemisAuction is IThemis, ERC721 {
         );
     }
 
-    function checkBid(address bidder_, uint128 bidAmount_) external {
+    function checkBid(address bidder_, uint128 bidAmount_, bytes32 salt_) external returns (bool, address, uint128, bytes32){
         if (block.timestamp > endOfBiddingPeriod ||
         block.timestamp > endOfRevealPeriod) revert NotInRevealPeriod();
         if (bidAmount_ < reservePrice) revert BidLowerThanReserve();
 
         // insert in order of bids
-        highestBids.insert(
+        bool success = highestBids.insert(
             uint32(0xb1ba),
             bidder_,
             bidAmount_,
@@ -78,11 +78,13 @@ contract ThemisAuction is IThemis, ERC721 {
             bidder_,
             bidAmount_
         );
+
+        return (success, bidder_, bidAmount_, salt_);
     }
 
-    function testICA(address bidder_, uint128 amt) external returns (bool) {
-        return true;
-    }
+    // function testICA(address bidder_, uint128 amt) external returns (bool) {
+    //     return true;
+    // }
 
     // TODO: later
     function lateRevealBid() external {}

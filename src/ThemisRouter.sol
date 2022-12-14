@@ -77,7 +77,7 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
         address _target,
         bytes calldata data,
         bytes calldata callback
-    ) internal returns (bytes32 messageId) {
+    ) external returns (bytes32 messageId) {
 
         messageId = _dispatch(
             _destinationDomain,

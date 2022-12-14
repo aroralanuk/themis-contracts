@@ -39,9 +39,9 @@ contract ThemisAuctionTest is BaseTest {
             uint128(0.1 ether)
         );
 
-        auction.checkBid(alice, 0.2 ether);
-        auction.checkBid(bob, 0.5 ether);
-        auction.checkBid(charlie, 0.3 ether);
+        // auction.checkBid(alice, 0.2 ether);
+        // auction.checkBid(bob, 0.5 ether);
+        // auction.checkBid(charlie, 0.3 ether);
 
         // assertEq(auction.)
     }

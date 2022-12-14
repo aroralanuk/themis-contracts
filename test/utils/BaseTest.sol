@@ -4,6 +4,7 @@
 pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
+import {MockERC20} from "test/mock/MockERC20.sol";
 
 abstract contract BaseTest is Test {
     address constant internal MOONBASE_ALPHA_ICA =
@@ -29,13 +30,23 @@ abstract contract BaseTest is Test {
 
     uint entropy = 0;
 
+    MockERC20 internal usdc;
+
     function setUp() public virtual {
         vm.label(alice, "alice");
         vm.label(bob, "bob");
         vm.label(charlie, "charlie");
+
+        usdc = new MockERC20("USDC", "USDC", 6);
+
+        usdc.mint(address(this), 100_000e6);
+        usdc.mint(alice, 100_000e6);
+        usdc.mint(bob, 100_000e6);
+        usdc.mint(charlie, 100_000e6);
     }
 
-    function genBytes32() internal view returns (bytes32 salt) {
+    function genBytes32() internal returns (bytes32 salt) {
+        entropy++;
         return keccak256(abi.encodePacked(block.timestamp, entropy));
     }
 }
