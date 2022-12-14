@@ -101,7 +101,10 @@ contract ThemisController is IThemis {
         router.dispatchWithCallback(
             Auction.getDomain(auction),
             auctionContract,
-            abi.encodeCall(ThemisAuction(auctionContract).checkBid, (bidder_, vaultBalance, salt_)),
+            abi.encodeCall(
+                ThemisAuction(auctionContract).checkBid,
+                (bidder_, vaultBalance, salt_)
+            ),
             abi.encodePacked(this.revealBidCallback.selector)
         );
 

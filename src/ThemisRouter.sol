@@ -59,16 +59,10 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
 
     mapping(string => address) public liquidityLayerAdapters;
 
-    function initialize(
-        address _mailbox,
-        address _interchainGasPaymaster,
-        address _interchainSecurityModule
-    ) public initializer {
+    function initialize(address _mailbox) public initializer {
         // Transfer ownership of the contract to `msg.sender`
         __HyperlaneConnectionClient_initialize(
-            _mailbox,
-            _interchainGasPaymaster,
-            _interchainSecurityModule
+            _mailbox
         );
     }
 
