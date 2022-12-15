@@ -75,8 +75,8 @@ contract ThemisController is IThemis {
         uint128 bidAmount_,
         bytes32 salt_,
         CollateralizationProof calldata proof_
-    ) external {
-        address vault = getVaultAddress(
+    ) external returns (address vault){
+        vault = getVaultAddress(
             auction,
             bidder_,
             bidAmount_,

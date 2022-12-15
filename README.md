@@ -1,5 +1,11 @@
+![Themis background](./assets/themis-bg.jpeg)
+
+![Test CI](https://github.com/aroralanuk/themis-contracts/actions/workflows/test.yml/badge.svg?branch=main)
+[![License][license-badge]][license-link]
+[![Author][discord-badge]][discord-link]
+
 # Themis
-Cross-chain vickrey auction powered by Hyperlane 
+Cross-chain vickrey auction powered by Hyperlane
 
 ## Background
 My interested were piqued when I came across the ["sneaky" auction](https://a16zcrypto.com/hidden-in-plain-sight-a-sneaky-solidity-implementation-of-a-sealed-bid-auction/) post a couple weeks ago. On-chain auction is very focus area for designing robust market structure for your web3 protocols, be it NFT mints or early access to your token-gated platform. This particular design was interesting because it combined the `create2` opcode and state proofs to guarantee bid privacy for users without making them lock up more collateral than required for the bid. Plus, a vickey auctions is a blind second price auction which is acknowledged as closest to fair value auction or being an ("optimal")[https://web.stanford.edu/~jdlevin/Econ%20286/Auctions.pdf] auction. But there were a few things missing for this to a viable option for everyday drops and users (I'll use the example of Ticketmaster's botched release of Taylor Swift's tour tickets as a use case):
@@ -12,8 +18,29 @@ These issues are why I started this project, to productionize the novel `create2
 
 ## How it works
 
-Private or sealed bid auctions need to be a. private till everyone else has placed their bid and b. winner has enough collateral locked up to fulfil their commitment. Private bids obsecuate the bid amount and who person behind the bid. 
+Private or sealed bid auctions need to be a. private till everyone else has placed their bid and b. winner has enough collateral locked up to fulfil their commitment. Private bids obsecuate the bid amount and who person behind the bid.
 
 We use the `CREAT2` opcode similar to a16z's implementation. With the `CREATE2`, we can predict the exact address of the collateralized vaults and send them our bid amounts before initializing the actual contract. This way, it will look like any ordinary transfer of tokens to an address from the outside. This serves as a hash commitment for our bids and collateral we deposited into the predeployed vault. Since the bidder can't access the private keys of the vault, the collateral is locked until revealed. All this happens on the origin chain.
 
+## Contracts
+```ml
+src
+├─ interfaces
+│  ├─ ILiquidityLayerRouter — "Interface for dispatching and handling token transfers using an adapter"
+├─ MerkleProofLib — "Efficient merkle tree inclusion proof verification library"
+├─ IThemis — "Abstract contract for defining events and custom errors"
+├─ ThemisAuction — "Origin chain ERC721 compatible for storing bids and conducting vickrey auctions"
+├─ ThemisController — "Remote chain contract for handling token transfers and revealing bids"
+├─ ThemisVault — "Remote chain contract for locking collateral deployed with CREATE2"
+```
+
+
+
 WIP
+
+[ci-badge]: https://github.com/ProjectOpenSea/seaport/actions/workflows/test.yml/badge.svg
+[ci-link]: https://github.com/ProjectOpenSea/seaport/actions/workflows/test.yml
+[license-badge]: https://img.shields.io/github/license/aroralanuk/themis-contracts
+[license-link]: https://github.com/ProjectOpenSea/seaport/blob/main/LICENSE
+[discord-badge]: https://img.shields.io/static/v1?logo=discord&label=discord&message=Join&color=blue
+[discord-link]: https://discord.gg/ADXcTXpqry

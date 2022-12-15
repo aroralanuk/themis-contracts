@@ -5,13 +5,15 @@ import "forge-std/console.sol";
 
 import {MockERC20} from "test/mock/MockERC20.sol";
 
-import {IInterchainAccountRouter} from "@hyperlane-xyz/core/interfaces/IInterchainAccountRouter.sol";
+import {TypeCasts} from "@hyperlane-xyz/core/contracts/libs/TypeCasts.sol";
+import {MockHyperlaneEnvironment} from "test/mock/MockHyperlaneEnvironment.sol";
 
 import {Auction} from "src/lib/Auction.sol";
 
 import {ThemisRouter} from "src/ThemisRouter.sol";
 import {ThemisAuction} from "src/ThemisAuction.sol";
 import {ThemisController} from "src/ThemisController.sol";
+
 
 
 import {BaseTest} from "./utils/BaseTest.sol";
@@ -45,15 +47,21 @@ contract MockThemisController is ThemisController {
 
 
 contract ThemisControllerTest is BaseTest {
-    ThemisRouter internal router = new ThemisRouter();
+    ThemisRouter internal router;
 
     ThemisAuction internal auction;
     MockThemisController internal controller;
+
+    MockHyperlaneEnvironment testEnv;
 
     function setUp() public override {
         super.setUp();
         vm.roll(block.number + 1_000_000);
 
+        originDomain = 1; // domain for auction
+        remoteDomain = 2; // domain for controller
+
+        testEnv = new MockHyperlaneEnvironment(remoteDomain, originDomain);
         auction = new ThemisAuction("Ethereal Encounters", "EE", 10_000);
         auction.initialize(
             uint64(1 hours),
@@ -63,6 +71,13 @@ contract ThemisControllerTest is BaseTest {
 
 
         router = new ThemisRouter();
+        router.initialize(
+            address(testEnv.mailboxes(remoteDomain))
+        );
+        router.enrollRemoteRouter(
+            originDomain,
+            TypeCasts.addressToBytes32(alice)
+        );
 
         controller = new MockThemisController(address(router));
     }
@@ -123,8 +138,13 @@ contract ThemisControllerTest is BaseTest {
 
         controller.startReveal();
 
-        // TODO: fix pre-setup router
-        controller.revealBid(alice, 100e6, salt, nullProof());
+        address vault = controller.revealBid(alice, 100e6, salt, nullProof());
+        controller.revealBidCallback(alice, 100e6, salt, false);
+
+        assertTrue(
+            vault.code.length > 0,
+            "Vault should be deployed"
+        );
     }
 
 

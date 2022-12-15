@@ -12,6 +12,8 @@ import {MockHyperlaneEnvironment} from "test/mock/MockHyperlaneEnvironment.sol";
 import {MockRecipient} from "test/mock/MockRecipient.sol";
 
 contract ThemisRouterTest is BaseTest {
+    error CallbackError();
+
     MockHyperlaneEnvironment testEnv;
 
     uint32 hubDomain = 1;
@@ -90,7 +92,27 @@ contract ThemisRouterTest is BaseTest {
         assertEq(result, false);
     }
 
+    function testCallbackRevert() public {
+        bytes32 _salt = genBytes32();
+
+        spokeRouter.dispatchWithCallback(
+            hubDomain,
+            address(recipient),
+            abi.encodeCall(
+                recipient.exampleFunction,
+                (address(this), 100e6, _salt)
+            ),
+            abi.encodePacked(this.exampleCallback.selector)
+        );
+
+        testEnv.processNextPendingMessageFromDestination();
+        vm.expectRevert();
+        testEnv.processNextPendingMessage();
+        assertEq(result, false);
+    }
+
     function exampleCallback(bool arg1, address arg2, uint128 arg3, bytes32 arg4) public {
+        if (arg3 < 500e6) revert CallbackError();
         result = arg1 || arg2 == address(0x0) || arg3 %10 == 0 || arg4 == bytes32(0x0);
     }
 }
