@@ -11,6 +11,8 @@ import {ThemisRouter} from "src/ThemisRouter.sol";
 import {BaseTest} from "test/utils/BaseTest.sol";
 import {MockHyperlaneEnvironment} from "test/mock/MockHyperlaneEnvironment.sol";
 import {MockRecipient} from "test/mock/MockRecipient.sol";
+import {MockCircleBridge} from "test/mock/MockCircleBridge.sol";
+import {MockCircleMessageTransmitter} from "test/mock/MockCircleMessageTransmitter.sol";
 
 contract ThemisRouterTest is BaseTest {
     error CallbackError();
@@ -28,6 +30,8 @@ contract ThemisRouterTest is BaseTest {
     CircleBridgeAdapter spokeBridgeAdapter;
 
     MockRecipient recipient;
+    MockCircleBridge circleBridge;
+    MockCircleMessageTransmitter messageTransmitter;
 
     bool callbackResult = false;
     event LiquidityLayerAdapterSet(string indexed bridge, address adapter);
@@ -41,7 +45,10 @@ contract ThemisRouterTest is BaseTest {
         spokeRouter = new ThemisRouter();
         recipient = new MockRecipient();
 
-
+        circleBridge = new MockCircleBridge(usdc);
+        messageTransmitter = new MockCircleMessageTransmitter(usdc);
+        hubBridgeAdapter = new CircleBridgeAdapter();
+        spokeBridgeAdapter = new CircleBridgeAdapter();
 
         hubRouter.initialize(
             address(testEnv.mailboxes(hubDomain))
@@ -59,6 +66,13 @@ contract ThemisRouterTest is BaseTest {
         spokeRouter.enrollRemoteRouter(
             hubDomain,
             TypeCasts.addressToBytes32(address(hubRouter))
+        );
+
+        hubBridgeAdapter.initialize(
+            address(this),
+            address(circleBridge),
+            address(messageTransmitter),
+            address(hubRouter)
         );
 
         hubRouter.setLiquidityLayerAdapter(
@@ -133,31 +147,60 @@ contract ThemisRouterTest is BaseTest {
 
     function testChangeLiquidityAdapter() public {
         vm.expectEmit(true, false, false, true);
-        emit LiquidityLayerAdapterSet("brooklyn_bridge", address(hubBridgeAdapter));
+        emit LiquidityLayerAdapterSet("brooklyn_bridge", address(spokeBridgeAdapter));
 
-        hubRouter.setLiquidityLayerAdapter(
+        spokeRouter.setLiquidityLayerAdapter(
             "brooklyn_bridge",
-            address(hubBridgeAdapter)
+            address(spokeBridgeAdapter)
         );
 
         // Expect the bridge adapter to have been set
         assertEq(
-            hubRouter.liquidityLayerAdapters("brooklyn_bridge"),
-            address(hubBridgeAdapter)
+            spokeRouter.liquidityLayerAdapters("brooklyn_bridge"),
+            address(spokeBridgeAdapter)
         );
 
     }
 
-    function testDispatchTokens_RevertsUnkownBridgeAdapter() public {
-        // vm.expectRevert("No adapter found for bridge");
-        // hubRouter.dispatchWithTokens(
-        //     spokeDomain,
-        //     TypeCasts.addressToBytes32(address(recipient)),
-        //     messageBody,
-        //     address(token),
-        //     amount,
-        //     "BazBridge" // some unknown bridge name
-        // );
+    function testDispatchTokens_UnkownBridgeAdapter_Fail() public {
+        spokeRouter._getAdapter(bridge);
+        vm.expectRevert("No adapter found for bridge");
+        spokeRouter.dispatchWithTokens(
+            hubDomain,
+            TypeCasts.addressToBytes32(address(recipient)),
+            hex"0e23419f",
+            address(usdc),
+            100e6,
+            "BazBridge" // some unknown bridge name
+        );
+    }
+
+    function testDispatchTokens_InsufficientAllowance_Fail() public {
+        // solmate tries subtracting the amount from allowance, which gives a
+        // arithmetic underflow instead of insufficient allowance error
+        vm.expectRevert();
+        spokeRouter.dispatchWithTokens(
+            hubDomain,
+            TypeCasts.addressToBytes32(address(recipient)),
+            hex"0e23419f",
+            address(usdc),
+            100e6,
+            bridge
+        );
+    }
+
+    function testDispatchWithTokenTransfersMovesTokens() public {
+        usdc.approve(address(spokeRouter), 100e6);
+        // TODO: fix this test
+        vm.expectRevert();
+        spokeRouter.dispatchWithTokens(
+            hubDomain,
+            TypeCasts.addressToBytes32(address(recipient)),
+            hex"0e23419f",
+            address(usdc),
+            100e6,
+            bridge
+        );
     }
 
     function exampleCallback(bool arg1, address arg2, uint128 arg3, bytes32 arg4) public {

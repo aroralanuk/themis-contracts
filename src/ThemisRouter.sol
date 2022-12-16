@@ -111,6 +111,7 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
                 address(_adapter),
                 _amount
         );
+        console.log("works");
 
         // Reverts if the bridge was unsuccessful.
         // Gets adapter-specific data that is encoded into the message
@@ -235,7 +236,7 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
     }
 
     function _getAdapter(string memory _bridge)
-        internal
+        public
         view
         returns (ILiquidityLayerAdapter _adapter)
     {
