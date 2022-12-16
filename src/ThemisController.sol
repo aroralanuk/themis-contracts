@@ -151,6 +151,13 @@ contract ThemisController is IThemis {
         }
     }
 
+    /// @notice computes the `CREATE2` address of the `ThemisVault` with the
+    /// given paramters. The vault may not be deployed yet.
+    /// @param _auction The auction for which the vault is being created
+    /// @param _collateralToken The collateral token used for the vault
+    /// @param bidder The bidder who deposited the collateral to this vault
+    /// @param salt The salt used to create the vault
+    /// @return vault The address of the vault
     function getVaultAddress(
         bytes32 _auction,
         address _collateralToken,

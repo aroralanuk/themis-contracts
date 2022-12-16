@@ -22,9 +22,18 @@ jobs:
         with:
           version: nightly
 
+      - name: Set Node.js 16.x
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16.x
+
+      - name: Hyperlane dependencies setup
+        uses: borales/actions-yarn@v4
+        with:
+          cmd: --cwd ./lib/hyperlane-monorepo install
+
       - name: Run Forge build
         run: |
-          forge --version
           forge build --sizes
         id: build
 
