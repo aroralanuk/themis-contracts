@@ -80,6 +80,7 @@ contract ThemisControllerTest is BaseTest {
         );
 
         controller = new MockThemisController(address(router));
+        controller.setCollateralToken(address(usdc));
     }
 
     function testConnectAuction() public {
@@ -127,7 +128,7 @@ contract ThemisControllerTest is BaseTest {
         controller.startReveal();
     }
 
-    function testRevealBid() public {
+    function testRevealBid_NotPlaced() public {
         controller.connectAuction(originDomain, address(auction));
 
         vm.startPrank(alice);
@@ -138,14 +139,48 @@ contract ThemisControllerTest is BaseTest {
 
         controller.startReveal();
 
-        address vault = controller.revealBid(alice, 100e6, salt, nullProof());
+        address vault = controller.revealBid(alice, salt, nullProof());
         controller.revealBidCallback(alice, 100e6, salt, false);
 
         assertTrue(
             vault.code.length > 0,
             "Vault should be deployed"
         );
+        assertEq(usdc.balanceOf(address(vault)), 0, "Vault should be empty");
+        assertEq(
+            usdc.balanceOf(alice),
+            100_000e6,
+            "Alice should get her bid amount refunded"
+        );
     }
+
+    function testRevealBid_Placed() public {
+        controller.connectAuction(originDomain, address(auction));
+
+        vm.startPrank(alice);
+        bytes32 salt = genBytes32();
+        commitBid(alice, 100e6, salt);
+        skip(1.5 hours);
+        vm.stopPrank();
+
+        controller.startReveal();
+
+        address vault = controller.revealBid(alice, salt, nullProof());
+        controller.revealBidCallback(alice, 100e6, salt, true);
+
+        assertTrue(
+            vault.code.length == 0,
+            "Vault should not be deployed"
+        );
+        assertEq(usdc.balanceOf(address(vault)), 100e6, "Vault should be funded");
+        assertEq(
+            usdc.balanceOf(alice),
+            99_900e6,
+            "Alice should not get her bid amount refunded"
+        );
+    }
+
+
 
 
     function commitBid(
@@ -156,13 +191,14 @@ contract ThemisControllerTest is BaseTest {
         private
         returns (address vault)
     {
+
         vault = controller.getVaultAddress(
             Auction.format(originDomain, address(auction)),
+            address(usdc),
             from,
-            bidValue,
             salt
         );
-        MockERC20(usdc).transfer(vault, bidValue);
+        usdc.transfer(vault, bidValue);
     }
 
     function nullProof()

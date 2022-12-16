@@ -82,10 +82,6 @@ contract ThemisAuction is IThemis, ERC721 {
         return (success, bidder_, bidAmount_, salt_);
     }
 
-    // function testICA(address bidder_, uint128 amt) external returns (bool) {
-    //     return true;
-    // }
-
     // TODO: later
     function lateRevealBid() external {}
 

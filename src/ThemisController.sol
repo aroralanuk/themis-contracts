@@ -20,11 +20,13 @@ contract ThemisController is IThemis {
     mapping(address => bool) revealedVault;
 
     address owner;
+    address collateralToken;
 
     uint96 public revealStartBlock;
     bytes32 public storedBlockHash;
 
     bool isCollateralized;
+    mapping (address => uint128) public bidReqd;
 
     /// @dev A Merkle proof and block header, in conjunction with the
     ///      stored `collateralizationDeadlineBlockHash` for an auction,
@@ -58,6 +60,10 @@ contract ThemisController is IThemis {
         auction = Auction.format(domain_, contract_);
     }
 
+    function setCollateralToken(address _token) public onlyOwner {
+        collateralToken = _token;
+    }
+
     function startReveal() external onlyOwner {
         if (storedBlockHash != bytes32(0)) revert RevealAlreadyStarted();
         uint256 revealStartBlockCached = revealStartBlock;
@@ -71,16 +77,15 @@ contract ThemisController is IThemis {
     }
 
     function revealBid(
-        address bidder_,
-        uint128 bidAmount_,
-        bytes32 salt_,
-        CollateralizationProof calldata proof_
+        address bidder,
+        bytes32 salt,
+        CollateralizationProof calldata proof
     ) external returns (address vault){
         vault = getVaultAddress(
             auction,
-            bidder_,
-            bidAmount_,
-            salt_
+            collateralToken,
+            bidder,
+            salt
         );
 
         if (revealedVault[vault]) revert BidAlreadyRevealed();
@@ -88,8 +93,8 @@ contract ThemisController is IThemis {
 
         uint128 vaultBalance = uint128(
             _getProvenAccountBalance(
-                proof_.accountMerkleProof,
-                proof_.blockHeaderRLP,
+                proof.accountMerkleProof,
+                proof.blockHeaderRLP,
                 storedBlockHash,
                 vault
             )
@@ -102,7 +107,7 @@ contract ThemisController is IThemis {
             auctionContract,
             abi.encodeCall(
                 ThemisAuction(auctionContract).checkBid,
-                (bidder_, vaultBalance, salt_)
+                (bidder, vaultBalance, salt)
             ),
             abi.encodePacked(this.revealBidCallback.selector)
         );
@@ -110,7 +115,7 @@ contract ThemisController is IThemis {
         emit BidProvenRemote(
             block.timestamp,
             auction,
-            bidder_,
+            bidder,
             vaultBalance
         );
     }
@@ -125,9 +130,9 @@ contract ThemisController is IThemis {
 
         if (!success) {
             new ThemisVault{salt: _salt}(
-                auctionContract, // fixme: actually token address
-                _bidder,
-                _bidAmount
+                auction,
+                collateralToken,
+                _bidder
             );
 
             emit BidFailed(
@@ -147,25 +152,29 @@ contract ThemisController is IThemis {
     }
 
     function getVaultAddress(
-        bytes32 auction_,
-        address bidder_,
-        uint128 bidAmount_,
-        bytes32 salt_
+        bytes32 _auction,
+        address _collateralToken,
+        address bidder,
+        bytes32 salt
     ) public view returns (address vault) {
         // Compute `CREATE2` address of vault
         return address(uint160(uint256(keccak256(abi.encodePacked(
             bytes1(0xff),
             address(this),
-            salt_,
+            salt,
             keccak256(abi.encodePacked(
                 type(ThemisVault).creationCode,
                 abi.encode(
-                    auction_,
-                    bidder_,
-                    bidAmount_
+                    _auction,
+                    _collateralToken,
+                    bidder
                 )
             ))
         )))));
+    }
+
+    function getBidRequired(address _bidder) external view returns (uint128) {
+        return bidReqd[_bidder];
     }
 
     /// @dev Gets the balance of the given account at a past block by

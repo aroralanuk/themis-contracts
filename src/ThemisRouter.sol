@@ -4,7 +4,7 @@ pragma solidity ^0.8.15;
 import "forge-std/console.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 
 import {TypeCasts} from "@hyperlane-xyz/core/contracts/libs/TypeCasts.sol";
 import {Router} from "@hyperlane-xyz/core/contracts/Router.sol";
@@ -17,7 +17,7 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
 
     // auction.distribute -> origin.dispatch -> remote.handle -> remote.dispatchWithTokens -> origin.handleWithTokens -> auction.mint
     using TypeCasts for bytes32;
-    using SafeERC20 for IERC20;
+    using SafeTransferLib for IERC20;
 
     enum Action {
         DISPATCH,
@@ -102,7 +102,7 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
         ILiquidityLayerAdapter _adapter = _getAdapter(_bridge);
 
         // transfer to the bridge adapter
-        IERC20(_token).safeTransferFrom(
+        IERC20(_token).transferFrom(
                 msg.sender,
                 address(_adapter),
                 _amount
@@ -220,17 +220,6 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
                 _receivedAmount
             );
         }
-    }
-
-    function _encodeError(bytes memory _result, address _to)
-        internal returns (string memory)
-    {
-        return string.concat(
-            "Error calling ",
-            string(abi.encodePacked(_to)),
-            ": ",
-            string(_result)
-        );
     }
 
     function _getAdapter(string memory _bridge)
