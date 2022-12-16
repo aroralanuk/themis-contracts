@@ -11,8 +11,6 @@ import {IThemis} from "src/IThemis.sol";
 import {ThemisAuction} from "src/ThemisAuction.sol";
 import {ThemisVault} from "src/ThemisVault.sol";
 import {ThemisRouter} from "src/ThemisRouter.sol";
-import {Call} from "@hyperlane-xyz/core/contracts/Call.sol";
-
 
 
 contract ThemisController is IThemis {

@@ -4,7 +4,6 @@ pragma solidity ^0.8.15;
 import {ERC721} from "solmate/tokens/ERC721.sol";
 
 import {Bids} from "src/lib/Bids.sol";
-
 import {IThemis} from "src/IThemis.sol";
 
 contract ThemisAuction is IThemis, ERC721 {

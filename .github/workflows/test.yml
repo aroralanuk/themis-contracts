@@ -30,7 +30,8 @@ jobs:
       - name: Hyperlane dependencies setup
         uses: borales/actions-yarn@v4
         with:
-          cmd: --cwd ./lib/hyperlane-monorepo install
+          cmd: install
+          dir: 'lib/hyperlane-monorepo'
 
       - name: Run Forge build
         run: |

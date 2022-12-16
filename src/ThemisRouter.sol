@@ -25,6 +25,10 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
         RESOLVE
     }
 
+    mapping(string => address) public liquidityLayerAdapters;
+
+    event LiquidityLayerAdapterSet(string indexed bridge, address adapter);
+
     event DispatchedWithCallback(
         uint32 destinationDomain,
         address sender,
@@ -59,7 +63,7 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
         bytes messageBody;
     }
 
-    mapping(string => address) public liquidityLayerAdapters;
+
 
     function initialize(address _mailbox) public initializer {
         // Transfer ownership of the contract to `msg.sender`
@@ -220,6 +224,14 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
                 _receivedAmount
             );
         }
+    }
+
+    function setLiquidityLayerAdapter(string calldata _bridge, address _adapter)
+        external
+        onlyOwner
+    {
+        liquidityLayerAdapters[_bridge] = _adapter;
+        emit LiquidityLayerAdapterSet(_bridge, _adapter);
     }
 
     function _getAdapter(string memory _bridge)

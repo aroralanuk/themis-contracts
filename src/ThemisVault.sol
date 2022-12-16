@@ -2,8 +2,8 @@
 pragma solidity ^0.8.15;
 
 import "forge-std/console.sol";
-import "solmate/tokens/ERC20.sol";
-import "solmate/utils/SafeTransferLib.sol";
+import {ERC20} from "solmate/tokens/ERC20.sol";
+import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 import {ThemisController} from "./ThemisController.sol";
 
 /// @title A contract deployed via `CREATE2` by the `ThemisController` contract.
