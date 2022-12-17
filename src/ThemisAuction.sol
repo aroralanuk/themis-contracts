@@ -28,12 +28,12 @@ contract ThemisAuction is IThemis, ERC721 {
     mapping(uint256 => address) public reserved;
 
     constructor (
-        string memory name_,
-        string memory symbol_,
-        uint256 maxSupply_
-    ) ERC721(name_, symbol_) {
+        string memory name,
+        string memory symbol,
+        uint256 _maxSupply
+    ) ERC721(name, symbol) {
         collectionOwner = msg.sender;
-        MAX_SUPPLY = maxSupply_;
+        MAX_SUPPLY = _maxSupply;
     }
 
     function initialize(
@@ -60,7 +60,7 @@ contract ThemisAuction is IThemis, ERC721 {
     }
 
     function checkBid(address bidder_, uint128 bidAmount_, bytes32 salt_) external returns (bool, address, uint128, bytes32){
-        if (block.timestamp > endOfBiddingPeriod ||
+        if (block.timestamp < endOfBiddingPeriod ||
         block.timestamp > endOfRevealPeriod) revert NotInRevealPeriod();
         if (bidAmount_ < reservePrice) revert BidLowerThanReserve();
 
@@ -112,7 +112,6 @@ contract ThemisAuction is IThemis, ERC721 {
         if (reserved[id] != to) revert NotReserved();
         super._mint(to, id);
     }
-
 
     function tokenURI(uint256 id) public view override returns (string memory) {
         return string(abi.encodePacked(BASE_ASSET_URI, id));

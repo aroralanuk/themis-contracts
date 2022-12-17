@@ -180,9 +180,6 @@ contract ThemisControllerTest is BaseTest {
         );
     }
 
-
-
-
     function commitBid(
         address from,
         uint128 bidValue,

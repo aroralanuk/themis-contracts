@@ -67,6 +67,28 @@ library Bids {
         return bids;
     }
 
+    function contains(
+        Heap storage self,
+        uint32 _domain,
+        address _bidderAddress
+    ) internal view returns (bool) {
+        return getBidPosition(self, _domain, _bidderAddress) < self.totalBids;
+    }
+
+    function getBidPosition(
+        Heap storage self,
+        uint32 _domain,
+        address _bidderAddress
+    ) internal view returns (uint32) {
+        for (uint32 i = 0; i < self.totalBids; i++) {
+            if (self.index[self.array[i]].domain == _domain
+                && self.index[self.array[i]].bidderAddress == _bidderAddress) {
+                return i;
+            }
+        }
+        return self.totalBids;
+    }
+
     function swap(
         Heap storage self,
         uint32 i,
