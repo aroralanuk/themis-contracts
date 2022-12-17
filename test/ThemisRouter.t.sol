@@ -26,6 +26,7 @@ contract ThemisRouterTest is BaseTest {
     ThemisRouter spokeRouter;
 
     string bridge = "golden_gate";
+    uint128 internal ex_amt = 100e6;
     CircleBridgeAdapter hubBridgeAdapter;
     CircleBridgeAdapter spokeBridgeAdapter;
 
@@ -39,16 +40,17 @@ contract ThemisRouterTest is BaseTest {
     function setUp() public override {
         super.setUp();
 
-        testEnv = new MockHyperlaneEnvironment(hubDomain, spokeDomain);
+        circleBridge = new MockCircleBridge(usdc);
+        messageTransmitter = new MockCircleMessageTransmitter(usdc);
+        hubBridgeAdapter = new CircleBridgeAdapter();
+        spokeBridgeAdapter = new CircleBridgeAdapter();
 
         hubRouter = new ThemisRouter();
         spokeRouter = new ThemisRouter();
         recipient = new MockRecipient();
 
-        circleBridge = new MockCircleBridge(usdc);
-        messageTransmitter = new MockCircleMessageTransmitter(usdc);
-        hubBridgeAdapter = new CircleBridgeAdapter();
-        spokeBridgeAdapter = new CircleBridgeAdapter();
+        testEnv = new MockHyperlaneEnvironment(hubDomain, spokeDomain);
+
 
         hubRouter.initialize(
             address(testEnv.mailboxes(hubDomain))
@@ -73,6 +75,25 @@ contract ThemisRouterTest is BaseTest {
             address(circleBridge),
             address(messageTransmitter),
             address(hubRouter)
+        );
+
+        spokeBridgeAdapter.initialize(
+            address(this),
+            address(circleBridge),
+            address(messageTransmitter),
+            address(spokeRouter)
+        );
+
+        hubBridgeAdapter.addToken(address(usdc), "USDC");
+        spokeBridgeAdapter.addToken(address(usdc), "USDC");
+
+        hubBridgeAdapter.enrollRemoteRouter(
+            spokeDomain,
+            TypeCasts.addressToBytes32(address(spokeBridgeAdapter))
+        );
+        spokeBridgeAdapter.enrollRemoteRouter(
+            hubDomain,
+            TypeCasts.addressToBytes32(address(hubBridgeAdapter))
         );
 
         hubRouter.setLiquidityLayerAdapter(
@@ -130,7 +151,7 @@ contract ThemisRouterTest is BaseTest {
             address(recipient),
             abi.encodeCall(
                 recipient.exampleFunction,
-                (address(this), 100e6, _salt)
+                (address(this), ex_amt, _salt)
             ),
             abi.encodePacked(this.exampleCallback.selector)
         );
@@ -170,7 +191,7 @@ contract ThemisRouterTest is BaseTest {
             TypeCasts.addressToBytes32(address(recipient)),
             hex"0e23419f",
             address(usdc),
-            100e6,
+            ex_amt,
             "BazBridge" // some unknown bridge name
         );
     }
@@ -184,23 +205,90 @@ contract ThemisRouterTest is BaseTest {
             TypeCasts.addressToBytes32(address(recipient)),
             hex"0e23419f",
             address(usdc),
-            100e6,
+            ex_amt,
             bridge
         );
     }
 
-    function testDispatchWithTokenTransfersMovesTokens() public {
-        usdc.approve(address(spokeRouter), 100e6);
+    function testDispatchToken_MovesTokens() public {
+        vm.startPrank(alice);
+        usdc.approve(address(spokeRouter), ex_amt);
         // TODO: fix this test
-        vm.expectRevert();
+        // vm.expectRevert();
         spokeRouter.dispatchWithTokens(
             hubDomain,
             TypeCasts.addressToBytes32(address(recipient)),
             hex"0e23419f",
             address(usdc),
-            100e6,
+            ex_amt,
             bridge
         );
+        assertEq(usdc.balanceOf(address(alice)), 99_900e6);
+    }
+
+    function testDispatchWithTokensCallsAdapter() public {
+        vm.expectCall(
+            address(spokeBridgeAdapter),
+            abi.encodeWithSelector(
+                spokeBridgeAdapter.sendTokens.selector,
+                hubDomain,
+                TypeCasts.addressToBytes32(address(recipient)),
+                address(usdc),
+                ex_amt
+            )
+        );
+        usdc.approve(address(spokeRouter), ex_amt);
+        spokeRouter.dispatchWithTokens(
+            hubDomain,
+            TypeCasts.addressToBytes32(address(recipient)),
+            hex"0e23419f",
+            address(usdc),
+            ex_amt,
+            bridge
+        );
+    }
+
+    function testDispatch_Reverts_AdapterReverts() public {
+        usdc.approve(address(spokeRouter), ex_amt);
+        spokeRouter.dispatchWithTokens(
+            hubDomain,
+            TypeCasts.addressToBytes32(address(recipient)),
+            hex"0e23419f",
+            address(usdc),
+            ex_amt,
+            bridge
+        );
+
+        vm.expectRevert("Circle message not processed yet");
+        testEnv.processNextPendingMessageFromDestination();
+    }
+
+    function testDispatchTokens_Transfers() public {
+        usdc.approve(address(spokeRouter), ex_amt);
+        spokeRouter.dispatchWithTokens(
+            hubDomain,
+            TypeCasts.addressToBytes32(address(recipient)),
+            hex"0e23419f",
+            address(usdc),
+            ex_amt,
+            bridge
+        );
+
+        bytes32 nonceId = messageTransmitter.hashSourceAndNonce(
+            spokeBridgeAdapter.hyperlaneDomainToCircleDomain(
+                spokeDomain
+            ),
+            circleBridge.nextNonce()
+        );
+
+        messageTransmitter.process(
+            nonceId,
+            address(hubBridgeAdapter),
+            ex_amt
+        );
+        testEnv.processNextPendingMessageFromDestination();
+        assertEq(recipient.lastData(), hex"0e23419f");
+        assertEq(usdc.balanceOf(address(recipient)), ex_amt);
     }
 
     function exampleCallback(bool arg1, address arg2, uint128 arg3, bytes32 arg4) public {

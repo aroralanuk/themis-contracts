@@ -2,9 +2,29 @@
 pragma solidity ^0.8.15;
 
 import "forge-std/console.sol";
+import {ILiquidityLayerMessageRecipient} from "@hyperlane-xyz/core/interfaces/ILiquidityLayerMessageRecipient.sol";
 
-contract MockRecipient {
+contract MockRecipient is ILiquidityLayerMessageRecipient {
     bool test = false;
+
+
+    bytes32 public lastSender;
+    bytes public lastData;
+    address public lastToken;
+    uint256 public lastAmount;
+
+    address public lastCaller;
+    string public lastCallMessage;
+
+    event ReceivedMessage(
+        uint32 indexed origin,
+        bytes32 indexed sender,
+        string message,
+        address token,
+        uint256 amount
+    );
+
+    event ReceivedCall(address indexed caller, uint256 amount, string message);
 
     error SenderZeroAddress();
 
@@ -16,11 +36,17 @@ contract MockRecipient {
         return (true, arg1, arg2, arg3);
     }
 
-    // function testICA(address bidder_, uint128 amt) external returns (bool) {
-    //     return true;
-    // }
-
-    // TODO: later
-    // function exampleFunction() external {}
-
+    function handleWithTokens(
+        uint32 _origin,
+        bytes32 _sender,
+        bytes calldata _data,
+        address _token,
+        uint256 _amount
+    ) external override {
+        emit ReceivedMessage(_origin, _sender, string(_data), _token, _amount);
+        lastSender = _sender;
+        lastData = _data;
+        lastToken = _token;
+        lastAmount = _amount;
+    }
 }

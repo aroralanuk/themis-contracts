@@ -67,9 +67,7 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
 
     function initialize(address _mailbox) public initializer {
         // Transfer ownership of the contract to `msg.sender`
-        __HyperlaneConnectionClient_initialize(
-            _mailbox
-        );
+        __HyperlaneConnectionClient_initialize(_mailbox);
     }
 
     function dispatchWithCallback(
@@ -111,7 +109,6 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
                 address(_adapter),
                 _amount
         );
-        console.log("works");
 
         // Reverts if the bridge was unsuccessful.
         // Gets adapter-specific data that is encoded into the message
