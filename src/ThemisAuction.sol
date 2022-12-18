@@ -4,6 +4,7 @@ pragma solidity ^0.8.15;
 import {ERC721} from "solmate/tokens/ERC721.sol";
 
 import {Bids} from "src/lib/Bids.sol";
+import {Auction} from "src/lib/Auction.sol";
 import {IThemis} from "src/IThemis.sol";
 
 contract ThemisAuction is IThemis, ERC721 {
@@ -59,26 +60,26 @@ contract ThemisAuction is IThemis, ERC721 {
         );
     }
 
-    function checkBid(address bidder_, uint128 bidAmount_, bytes32 salt_) external returns (bool, address, uint128, bytes32){
+    function checkBid(bytes32 bidder, uint128 bidAmount, bytes32 salt) external returns (bool, bytes32, uint128, bytes32){
         if (block.timestamp < endOfBiddingPeriod ||
         block.timestamp > endOfRevealPeriod) revert NotInRevealPeriod();
-        if (bidAmount_ < reservePrice) revert BidLowerThanReserve();
+        if (bidAmount < reservePrice) revert BidLowerThanReserve();
 
         // insert in order of bids
         bool success = highestBids.insert(
-            uint32(0xb1ba),
-            bidder_,
-            bidAmount_,
+            Auction.getDomain(bidder),
+            Auction.getAuctionAddress(bidder),
+            bidAmount,
             uint64(block.timestamp) // fixme: use actual time
         );
 
         emit BidRevealed(
             address(this),
-            bidder_,
-            bidAmount_
+            bidder,
+            bidAmount
         );
 
-        return (success, bidder_, bidAmount_, salt_);
+        return (success, bidder, bidAmount, salt);
     }
 
     // TODO: later
@@ -111,6 +112,10 @@ contract ThemisAuction is IThemis, ERC721 {
         if (id >= MAX_SUPPLY) revert InvalidTokenId();
         if (reserved[id] != to) revert NotReserved();
         super._mint(to, id);
+    }
+
+    function getHighestBids() external view returns (Bids.Node[] memory) {
+        return highestBids.getAllBids();
     }
 
     function tokenURI(uint256 id) public view override returns (string memory) {

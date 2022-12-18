@@ -45,7 +45,7 @@ contract ThemisAuctionTest is BaseTest {
         );
 
         vm.expectRevert(IThemis.NotInRevealPeriod.selector);
-        auction.checkBid(alice, 0.2 ether, salt);
+        auction.checkBid(Auction.format(1,alice), 0.2 ether, salt);
     }
 
     function testCheckBid() public {
@@ -59,14 +59,41 @@ contract ThemisAuctionTest is BaseTest {
             uint64(2 hours),
             uint128(0.1 ether)
         );
+        BidParams memory expected = BidParams({
+            domain: 1,
+            bidderAddress: alice,
+            bidAmount: 0.2 ether,
+            bidTimestamp: uint64(block.timestamp)
+        });
         vm.warp(block.timestamp + 1 hours);
 
-        auction.checkBid(alice, 0.2 ether, salts[0]);
+        auction.checkBid(Auction.format(1,alice), 0.2 ether, salts[0]);
 
-        console.log(auction.highestBids());
+        Bids.Node[] memory bids = auction.getHighestBids();
+        assertBid(bids[0], expected);
+
     }
 
     function _heapContains() internal {
 
     }
+
+    struct BidParams {
+        uint32 domain;
+        address bidderAddress;
+        uint128 bidAmount;
+        uint64 bidTimestamp;
+    }
+
+    function assertBid(
+        Bids.Node memory bid,
+        BidParams memory expected
+    ) internal {
+        assertEq(bid.domain, expected.domain);
+        assertEq(bid.bidderAddress, expected.bidderAddress);
+        assertEq(bid.bidAmount, expected.bidAmount);
+        // TODO: timestamp yourt bids
+        // assertEq(bid.bidTimestamp, expected.bidTimestamp);
+    }
+
 }

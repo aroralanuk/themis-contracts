@@ -33,7 +33,7 @@ interface IThemis {
 
     event BidRevealed(
         address indexed auction,
-        address indexed bidder,
+        bytes32 indexed bidder,
         uint128 bidAmount
     );
 

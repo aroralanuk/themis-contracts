@@ -105,7 +105,7 @@ contract ThemisController is IThemis {
             auctionContract,
             abi.encodeCall(
                 ThemisAuction(auctionContract).checkBid,
-                (bidder, vaultBalance, salt)
+                (Auction.format(1, bidder), vaultBalance, salt)
             ),
             abi.encodePacked(this.revealBidCallback.selector)
         );
