@@ -88,17 +88,10 @@ contract ThemisAuctionTest is BaseTest {
         );
 
         vm.warp(block.timestamp + 1 hours);
-        BidParams[] memory expected = new BidParams[](3);
         for (uint256 j = MAX_SUPPLY; j > 0; j--) {
             uint i = j - 1;
             salt = genBytes32();
-            // [alice, bob, charlie]
-            expected[i] = BidParams({
-                domain: testDomains[2 - i],
-                bidderAddress: testUsers[2 - i],
-                bidAmount: testBids[2 - i],
-                bidTimestamp: uint64(block.timestamp + i)
-            });
+
             auction.checkBid(
                 Auction.format(testDomains[i],
                 testUsers[i]),
@@ -108,7 +101,7 @@ contract ThemisAuctionTest is BaseTest {
         }
 
         Bids.Node[] memory bids = auction.getHighestBids();
-        assertAllBids(bids, expected);
+        assertHeapProperty(bids);
     }
 
     function testCheckBid_Random() public {
@@ -204,6 +197,7 @@ contract ThemisAuctionTest is BaseTest {
 
         Bids.Node[] memory bids = auction.getHighestBids();
         assertAllBids(bids, expected);
+        assertHeapProperty(bids);
     }
 
     function testCheckBid_Full_JustEnoughBid() public {
@@ -241,8 +235,7 @@ contract ThemisAuctionTest is BaseTest {
         }
 
         Bids.Node[] memory bids = auction.getHighestBids();
-        // TODO: fix this
-        // assertHeapProperty(bids);
+        assertAllBids(bids, expected);
     }
 
     struct BidParams {

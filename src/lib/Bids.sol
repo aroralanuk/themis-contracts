@@ -59,7 +59,8 @@ library Bids {
             self.totalBids++;
 
             uint32 i = self.totalBids - 1;
-            while (i > 0 && self.array[i] < self.array[(i - 1) / 2]) {
+            while (i > 0 && getBid(self, i).bidAmount
+                                < getBid(self, (i - 1) / 2).bidAmount) {
                 swap(self, i, (i - 1) / 2);
                 i = (i - 1) / 2;
             }
@@ -76,12 +77,19 @@ library Bids {
         uint32 l = 2 * i + 1;
         uint32 r = 2 * i + 2;
         uint32 smallest = i;
-        if (l < self.totalBids && self.array[l] < self.array[smallest]) {
+        if (
+            l < self.totalBids &&
+            getBid(self, l).bidAmount < getBid(self, smallest).bidAmount
+        ) {
             smallest = l;
         }
-        if (r < self.totalBids && self.array[r] < self.array[smallest]) {
+        if (
+            r < self.totalBids &&
+            getBid(self, r).bidAmount < getBid(self, smallest).bidAmount
+        ) {
             smallest = r;
         }
+
         if (smallest != i) {
             swap(self, i, smallest);
             heapify(self, smallest);
