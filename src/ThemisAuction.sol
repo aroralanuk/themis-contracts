@@ -66,7 +66,7 @@ contract ThemisAuction is IThemis, ERC721 {
         if (bidAmount < reservePrice) revert BidLowerThanReserve();
 
         // insert in order of bids
-        bool success = highestBids.insert(
+        uint32 success = highestBids.insert(
             Auction.getDomain(bidder),
             Auction.getAuctionAddress(bidder),
             bidAmount,
@@ -79,7 +79,7 @@ contract ThemisAuction is IThemis, ERC721 {
             bidAmount
         );
 
-        return (success, bidder, bidAmount, salt);
+        return (success == 0, bidder, bidAmount, salt);
     }
 
     // TODO: later

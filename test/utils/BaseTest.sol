@@ -15,15 +15,19 @@ abstract contract BaseTest is Test {
     address constant charlie = address(uint160(uint256(keccak256("charlie"))));
     address constant devin = address(uint160(uint256(keccak256("devin"))));
 
-    address[] testUsers = [alice, bob, charlie, devin];
-    uint32[] testDomains = [0, 1, 3, 69];
-    uint128[] testBids = [100e6, 150e6, 200e6, 160e6];
-    bytes32[] salts = [genBytes32(), genBytes32(), genBytes32(), genBytes32()];
-
     // not needed
     // uint256 pk = vm.envUint("DEPLOYER_PRIVATE_KEY");
     // uint256 alice_pk = vm.envUint("ALICE_PRIVATE_KEY");
     // uint256 bob_pk = vm.envUint("BOB_PRIVATE_KEY");
+    address[] testUsers = [alice, bob, charlie, devin];
+    uint32[] testDomains = [0, 1, 3, 69];
+    uint128[] testBids = [100e6, 150e6, 200e6, 90e6];
+    bytes32 salt;
+
+    // placeholder for now
+    address[] expectedUsers = [alice, alice, alice];
+    uint32[] expectedDomains = [0, 0, 0];
+    uint128[] expectedBids = [0, 0, 0];
 
     string goerliRPC = vm.envString("GOERLI_RPC_URL");
     uint256 originFork = vm.createFork(goerliRPC);
@@ -51,7 +55,7 @@ abstract contract BaseTest is Test {
         usdc.mint(charlie, 100_000e6);
     }
 
-    function genBytes32() internal returns (bytes32 salt) {
+    function genBytes32() internal returns (bytes32) {
         entropy++;
         return keccak256(abi.encodePacked(block.timestamp, entropy));
     }
