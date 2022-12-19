@@ -34,6 +34,7 @@ library Bids {
 
         if (self.totalBids == self.array.length
             && bidAmount_ > self.index[self.array[0]].bidAmount) {
+
             revert BidTooLow();
         } else if (self.totalBids == self.array.length) {
             return false;

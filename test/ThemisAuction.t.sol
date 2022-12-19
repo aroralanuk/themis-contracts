@@ -17,6 +17,8 @@ contract ThemisAuctionTest is BaseTest {
     using Bids for Bids.Heap;
     ThemisAuction internal auction;
 
+    uint256 constant MAX_SUPPLY = 3;
+
     function setUp() public override {
         super.setUp();
 
@@ -48,34 +50,96 @@ contract ThemisAuctionTest is BaseTest {
         auction.checkBid(Auction.format(1,alice), 0.2 ether, salt);
     }
 
-    function testCheckBid() public {
-        bytes32[4] memory salts;
-        for (uint256 i = 0; i < 4; i++) {
-            salts[i] = genBytes32();
-        }
-
+    function testCheckBid_Ascending() public {
         auction.initialize(
             uint64(1 hours),
             uint64(2 hours),
-            uint128(0.1 ether)
+            uint128(50e6)
         );
-        BidParams memory expected = BidParams({
-            domain: 1,
-            bidderAddress: alice,
-            bidAmount: 0.2 ether,
-            bidTimestamp: uint64(block.timestamp)
-        });
-        vm.warp(block.timestamp + 1 hours);
 
-        auction.checkBid(Auction.format(1,alice), 0.2 ether, salts[0]);
+        vm.warp(block.timestamp + 1 hours);
+        BidParams[] memory expected = new BidParams[](3);
+        for (uint256 i = 0; i < 3; i++) {
+            salts[i] = genBytes32();
+            // [alice, bob, charlie]
+            expected[i] = BidParams({
+                domain: testDomains[i],
+                bidderAddress: testUsers[i],
+                bidAmount: testBids[i],
+                bidTimestamp: uint64(block.timestamp + i)
+            });
+            auction.checkBid(
+                Auction.format(testDomains[i],
+                testUsers[i]),
+                testBids[i],
+                salts[i]
+            );
+        }
 
         Bids.Node[] memory bids = auction.getHighestBids();
-        assertBid(bids[0], expected);
-
+        assertAllBids(bids, expected);
     }
 
-    function _heapContains() internal {
+    function testCheckBid_Descending() public {
+        auction.initialize(
+            uint64(1 hours),
+            uint64(2 hours),
+            uint128(50e6)
+        );
 
+        vm.warp(block.timestamp + 1 hours);
+        BidParams[] memory expected = new BidParams[](3);
+        for (uint256 j = MAX_SUPPLY; j > 0; j--) {
+            uint i = j - 1;
+            salts[i] = genBytes32();
+            // [alice, bob, charlie]
+            expected[i] = BidParams({
+                domain: testDomains[2 - i],
+                bidderAddress: testUsers[2 - i],
+                bidAmount: testBids[2 - i],
+                bidTimestamp: uint64(block.timestamp + i)
+            });
+            auction.checkBid(
+                Auction.format(testDomains[i],
+                testUsers[i]),
+                testBids[i],
+                salts[i]
+            );
+        }
+
+        Bids.Node[] memory bids = auction.getHighestBids();
+        assertAllBids(bids, expected);
+    }
+
+    function testCheckBid_Random() public {
+        auction.initialize(
+            uint64(1 hours),
+            uint64(2 hours),
+            uint128(50e6)
+        );
+
+        vm.warp(block.timestamp + 1 hours);
+        BidParams[] memory expected = new BidParams[](3);
+        for (uint256 i = 0; i < 3; i++) {
+            salts[i] = genBytes32();
+            // [alice, bob, charlie]
+            expected[i] = BidParams({
+                domain: testDomains[i],
+                bidderAddress: testUsers[i],
+                bidAmount: testBids[i],
+                bidTimestamp: uint64(block.timestamp + i)
+            });
+            uint r = i * 386_231 % 3;
+            auction.checkBid(
+                Auction.format(testDomains[r],
+                testUsers[r]),
+                testBids[r],
+                salts[r]
+            );
+        }
+
+        Bids.Node[] memory bids = auction.getHighestBids();
+        assertHeapProperty(bids);
     }
 
     struct BidParams {
@@ -94,6 +158,34 @@ contract ThemisAuctionTest is BaseTest {
         assertEq(bid.bidAmount, expected.bidAmount);
         // TODO: timestamp yourt bids
         // assertEq(bid.bidTimestamp, expected.bidTimestamp);
+    }
+
+    function assertAllBids(
+        Bids.Node[] memory bids,
+        BidParams[] memory expected
+    ) internal {
+        assertEq(bids.length, expected.length);
+        for (uint256 i = 0; i < bids.length; i++) {
+            assertBid(bids[i], expected[i]);
+        }
+    }
+
+    function assertHeapProperty(Bids.Node[] memory bids) internal pure {
+        require(bids.length == MAX_SUPPLY);
+        for (uint256 i = 0; i < bids.length; i++) {
+            uint256 left = 2 * i + 1;
+            uint256 right = 2 * i + 2;
+            if (left < bids.length) {
+                require(
+                    bids[i].bidAmount <= bids[left].bidAmount, "HEAP_PROPERTY_VIOLATED"
+                );
+            }
+            if (right < bids.length) {
+                require(
+                    bids[i].bidAmount <= bids[right].bidAmount, "HEAP_PROPERTY_VIOLATED"
+                );
+            }
+        }
     }
 
 }
