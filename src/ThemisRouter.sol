@@ -3,7 +3,7 @@ pragma solidity ^0.8.15;
 
 import "forge-std/console.sol";
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {ERC20} from "solmate/tokens/ERC20.sol";
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 
 import {TypeCasts} from "@hyperlane-xyz/core/contracts/libs/TypeCasts.sol";
@@ -17,7 +17,7 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
 
     // auction.distribute -> origin.dispatch -> remote.handle -> remote.dispatchWithTokens -> origin.handleWithTokens -> auction.mint
     using TypeCasts for bytes32;
-    using SafeTransferLib for IERC20;
+    using SafeTransferLib for ERC20;
 
     enum Action {
         DISPATCH,
@@ -104,7 +104,7 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
         ILiquidityLayerAdapter _adapter = _getAdapter(_bridge);
 
         // transfer to the bridge adapter
-        IERC20(_token).transferFrom(
+        ERC20(_token).transferFrom(
                 msg.sender,
                 address(_adapter),
                 _amount
@@ -148,9 +148,9 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
         bytes32 /* _sender */,
         bytes calldata _message
     ) internal override {
-
         Action action = abi.decode(_message, (Action));
 
+        // pattern match action type
         if (action == Action.DISPATCH) {
 
             (, address sender, Call memory call) = abi.decode(
