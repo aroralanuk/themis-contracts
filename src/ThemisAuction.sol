@@ -5,7 +5,10 @@ import {ERC721} from "solmate/tokens/ERC721.sol";
 
 import {Bids} from "src/lib/Bids.sol";
 import {Auction} from "src/lib/Auction.sol";
+import {Auction} from "src/lib/Auction.sol";
 import {IThemis} from "src/IThemis.sol";
+import {ThemisController} from "src/ThemisController.sol";
+import {ThemisRouter} from "src/ThemisRouter.sol";
 
 contract ThemisAuction is IThemis, ERC721 {
     using Bids for Bids.Heap;
@@ -22,11 +25,10 @@ contract ThemisAuction is IThemis, ERC721 {
     uint64 public endOfRevealPeriod;
     uint128 public reservePrice;
 
-    mapping(uint256 => uint64) highestBid;
-    mapping(uint256 => address) highestBidVault;
-    mapping(uint256 => uint64) secondHighestBid;
-
+    mapping (uint32 => address) public controllers;
     mapping(uint256 => address) public reserved;
+
+    ThemisRouter public router;
 
     constructor (
         string memory name,
@@ -93,6 +95,17 @@ contract ThemisAuction is IThemis, ERC721 {
             bid = highestBids.index[highestBids.array[i]];
 
             // accountRouter call -> check for liquidity
+            uint32 destDomain = bid.domain;
+            router.dispatchWithCallback(
+                destDomain,
+                getController(destDomain),
+                abi.encodeCall(
+                    ThemisController.deployVaultOnReveal,
+                    (bid.bidderAddress, bytes32(i)) // TODO: fix this
+                ),
+                abi.encodePacked(this.checkLiquidityReceipt.selector)
+            );
+
             _reserve(bid.bidderAddress, i);
         }
 
@@ -109,6 +122,7 @@ contract ThemisAuction is IThemis, ERC721 {
     }
 
     function _mint(address to, uint256 id) internal override {
+        // check if transfer was succefful
         if (id >= MAX_SUPPLY) revert InvalidTokenId();
         if (reserved[id] != to) revert NotReserved();
         super._mint(to, id);
@@ -120,5 +134,14 @@ contract ThemisAuction is IThemis, ERC721 {
 
     function tokenURI(uint256 id) public view override returns (string memory) {
         return string(abi.encodePacked(BASE_ASSET_URI, id));
+    }
+
+    function getController(uint32 _domain) public view returns (address) {
+        return controllers[_domain];
+    }
+
+    function checkLiquidityReceipt(uint32 _receipt) external returns (bool) {
+        // TODO: check liquidity receipt
+        return true;
     }
 }

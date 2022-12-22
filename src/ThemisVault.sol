@@ -11,6 +11,8 @@ import {ThemisController} from "./ThemisController.sol";
 contract ThemisVault {
     using SafeTransferLib for ERC20;
 
+    uint32 transferReceipt;
+
     constructor(
         bytes32 /* auction */,
         address collateralToken,
@@ -27,5 +29,11 @@ contract ThemisVault {
 
         uint balance = ERC20(collateralToken).balanceOf(address(this)) - bidAmount;
         ERC20(collateralToken).safeTransfer(bidder, balance);
+
+        transferReceipt = 1;
+    }
+
+    function getLiquidityReceipt() external view returns (uint32) {
+        return transferReceipt;
     }
 }

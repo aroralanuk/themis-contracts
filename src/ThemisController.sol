@@ -149,6 +149,38 @@ contract ThemisController is IThemis {
         }
     }
 
+    function deployVaultOnReveal(
+        address bidder,
+        bytes32 salt
+    ) external returns (uint32 transferReceipt) {
+        // restrict to router
+        address vault = getVaultAddress(
+            auction,
+            collateralToken,
+            bidder,
+            salt
+        );
+
+        if (revealedVault[vault]) revert BidAlreadyRevealed();
+        revealedVault[vault] = true;
+
+        ThemisVault _vault = new ThemisVault{salt: salt}(
+            auction,
+            collateralToken,
+            bidder
+        );
+
+        transferReceipt = _vault.getLiquidityReceipt();
+        // transfer receipt
+
+        emit VaultDeployed(
+            auction,
+            bidder,
+            vault
+        );
+    }
+
+
     /// @notice computes the `CREATE2` address of the `ThemisVault` with the
     /// given paramters. The vault may not be deployed yet.
     /// @param _auction The auction for which the vault is being created

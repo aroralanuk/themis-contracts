@@ -19,6 +19,7 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
     using TypeCasts for bytes32;
     using SafeTransferLib for ERC20;
 
+    uint32 public DOMAIN;
     enum Action {
         DISPATCH,
         LIQUIDITY,
@@ -65,9 +66,11 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
 
 
 
-    function initialize(address _mailbox) public initializer {
+    function initialize(address mailbox, uint32 domain) public initializer {
         // Transfer ownership of the contract to `msg.sender`
-        __HyperlaneConnectionClient_initialize(_mailbox);
+        __HyperlaneConnectionClient_initialize(mailbox);
+        // hyperlane domain for this chain
+        DOMAIN = domain;
     }
 
     function dispatchWithCallback(

@@ -54,6 +54,10 @@ interface IThemis {
     event RevealStarted();
     event AuctionEnded();
 
-
+    event VaultDeployed(
+        bytes32 indexed auction,
+        address indexed bidder,
+        address indexed vault
+    );
 
 }

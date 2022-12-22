@@ -53,11 +53,13 @@ contract ThemisRouterTest is BaseTest {
 
 
         hubRouter.initialize(
-            address(testEnv.mailboxes(hubDomain))
+            address(testEnv.mailboxes(hubDomain)),
+            hubDomain
         );
 
         spokeRouter.initialize(
-            address(testEnv.mailboxes(spokeDomain))
+            address(testEnv.mailboxes(spokeDomain)),
+            spokeDomain
         );
 
         hubRouter.enrollRemoteRouter(

@@ -72,7 +72,8 @@ contract ThemisControllerTest is BaseTest {
 
         router = new ThemisRouter();
         router.initialize(
-            address(testEnv.mailboxes(remoteDomain))
+            address(testEnv.mailboxes(remoteDomain)),
+            originDomain
         );
         router.enrollRemoteRouter(
             originDomain,
