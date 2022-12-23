@@ -2,7 +2,13 @@
 pragma solidity ^0.8.15;
 
 library Auction {
-    function format(uint32 domain_, address auctionAddress_)
+    struct HypAddress {
+        uint32 domain;
+        address auctionAddress;
+    }
+
+    function format(
+        uint32 domain_, address auctionAddress_)
         internal
         pure
         returns (bytes32 auction)

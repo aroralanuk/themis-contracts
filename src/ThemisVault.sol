@@ -24,11 +24,11 @@ contract ThemisVault {
 
         // If this vault holds the collateral for the winning bid, send the
         // bid amount to the control
-        uint256 bidAmount = controller.getBidRequired(bidder);
+        uint128 bidAmount = controller.bidAmounts(bidder);
         ERC20(collateralToken).transfer(address(controller), bidAmount);
 
-        uint balance = ERC20(collateralToken).balanceOf(address(this)) - bidAmount;
-        ERC20(collateralToken).safeTransfer(bidder, balance);
+        uint256 balance = ERC20(collateralToken).balanceOf(address(this));
+        ERC20(collateralToken).transfer(bidder, balance);
 
         transferReceipt = 1;
     }

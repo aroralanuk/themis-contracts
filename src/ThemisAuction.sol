@@ -101,7 +101,7 @@ contract ThemisAuction is IThemis, ERC721 {
                 getController(destDomain),
                 abi.encodeCall(
                     ThemisController.deployVaultOnReveal,
-                    (bid.bidderAddress, bytes32(i)) // TODO: fix this
+                    (bid.bidderAddress, bid.bidAmount , bytes32(i)) // TODO: fix this
                 ),
                 abi.encodePacked(this.checkLiquidityReceipt.selector)
             );
@@ -140,8 +140,8 @@ contract ThemisAuction is IThemis, ERC721 {
         return controllers[_domain];
     }
 
-    function checkLiquidityReceipt(uint32 _receipt) external returns (bool) {
+    function checkLiquidityReceipt(uint32 _receipt) external pure returns (bool) {
         // TODO: check liquidity receipt
-        return true;
+        return _receipt == 0;
     }
 }

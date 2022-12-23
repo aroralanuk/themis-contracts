@@ -6,7 +6,8 @@ import "forge-std/console.sol";
 import {MockERC20} from "test/mock/MockERC20.sol";
 
 import {TypeCasts} from "@hyperlane-xyz/core/contracts/libs/TypeCasts.sol";
-import {MockHyperlaneEnvironment} from "test/mock/MockHyperlaneEnvironment.sol";
+import {CircleBridgeAdapter} from "@hyperlane-xyz/core/contracts/middleware/liquidity-layer/adapters/CircleBridgeAdapter.sol";
+
 
 import {Auction} from "src/lib/Auction.sol";
 
@@ -14,9 +15,11 @@ import {ThemisRouter} from "src/ThemisRouter.sol";
 import {ThemisAuction} from "src/ThemisAuction.sol";
 import {ThemisController} from "src/ThemisController.sol";
 
-
-
 import {BaseTest} from "./utils/BaseTest.sol";
+
+import {MockHyperlaneEnvironment} from "test/mock/MockHyperlaneEnvironment.sol";
+import {MockCircleBridge} from "test/mock/MockCircleBridge.sol";
+import {MockCircleMessageTransmitter} from "test/mock/MockCircleMessageTransmitter.sol";
 
 contract MockThemisController is ThemisController {
     uint256 bal;
@@ -48,11 +51,17 @@ contract MockThemisController is ThemisController {
 
 contract ThemisControllerTest is BaseTest {
     ThemisRouter internal router;
+    ThemisRouter internal remoteRouter;
 
     ThemisAuction internal auction;
     MockThemisController internal controller;
 
+    // liquidity layer mock
     MockHyperlaneEnvironment testEnv;
+    string bridge = "Circle";
+    CircleBridgeAdapter bridgeAdapter;
+    MockCircleBridge circleBridge;
+    MockCircleMessageTransmitter messageTransmitter;
 
     function setUp() public override {
         super.setUp();
@@ -78,6 +87,21 @@ contract ThemisControllerTest is BaseTest {
         router.enrollRemoteRouter(
             originDomain,
             TypeCasts.addressToBytes32(alice)
+        );
+
+
+        circleBridge = new MockCircleBridge(usdc);
+        messageTransmitter = new MockCircleMessageTransmitter(usdc);
+        bridgeAdapter = new CircleBridgeAdapter();
+        bridgeAdapter.initialize(
+            address(this),
+            address(circleBridge),
+            address(messageTransmitter),
+            address(remoteRouter)
+        );
+        router.setLiquidityLayerAdapter(
+            bridge,
+            address(bridgeAdapter)
         );
 
         controller = new MockThemisController(address(router));
@@ -180,6 +204,65 @@ contract ThemisControllerTest is BaseTest {
             "Alice should not get her bid amount refunded"
         );
     }
+
+    function testRevealBid_DifferentBidder() public {
+        controller.connectAuction(originDomain, address(auction));
+
+        vm.startPrank(alice);
+        bytes32 salt = genBytes32();
+        commitBid(bob, 100e6, salt);
+        skip(1.5 hours);
+        vm.stopPrank();
+
+        controller.startReveal();
+
+        address vault = controller.revealBid(bob, salt, nullProof());
+        controller.revealBidCallback(bob, 100e6, salt, true);
+
+        assertTrue(
+            vault.code.length == 0,
+            "Vault should not be deployed"
+        );
+        assertEq(usdc.balanceOf(address(vault)), 100e6, "Vault should be funded");
+        assertEq(
+            usdc.balanceOf(alice),
+            99_900e6,
+            "Alice should not get her bid amount refunded"
+        );
+    }
+
+    function testDeployVaultOnReveal() public {
+        controller.connectAuction(originDomain, address(auction));
+
+        vm.startPrank(alice);
+        bytes32 salt = genBytes32();
+        commitBid(alice, 100e6, salt);
+        skip(1.5 hours);
+        vm.stopPrank();
+
+        controller.startReveal();
+
+        address vault = controller.revealBid(alice, salt, nullProof());
+        controller.revealBidCallback(alice, 100e6, salt, true);
+
+
+        // TODO: fix this test
+        // controller.deployVaultOnReveal(alice, 88e6, salt);
+
+        assertTrue(
+            vault.code.length == 0,
+            "Vault should not be deployed"
+        );
+
+        // assertEq(
+        //     usdc.balanceOf(alice),
+        //     99_912e6,
+        //     "Alice should balance refunded"
+        // );
+
+    }
+
+
 
     function commitBid(
         address from,

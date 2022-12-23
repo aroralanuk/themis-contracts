@@ -107,6 +107,7 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
         ILiquidityLayerAdapter _adapter = _getAdapter(_bridge);
 
         // transfer to the bridge adapter
+        console.log("transfer to the bridge adapter");
         ERC20(_token).transferFrom(
                 msg.sender,
                 address(_adapter),

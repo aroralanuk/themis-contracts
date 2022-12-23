@@ -3,6 +3,7 @@ pragma solidity ^0.8.15;
 
 import "forge-std/console.sol";
 
+import {ERC20} from "solmate/tokens/ERC20.sol";
 
 import {Auction} from "src/lib/Auction.sol";
 import {LibBalanceProof} from "src/lib/LibBalanceProof.sol";
@@ -24,7 +25,7 @@ contract ThemisController is IThemis {
     bytes32 public storedBlockHash;
 
     bool isCollateralized;
-    mapping (address => uint128) public bidReqd;
+    mapping (address => uint128) public bidAmounts;
 
     /// @dev A Merkle proof and block header, in conjunction with the
     ///      stored `collateralizationDeadlineBlockHash` for an auction,
@@ -151,9 +152,11 @@ contract ThemisController is IThemis {
 
     function deployVaultOnReveal(
         address bidder,
+        uint128 _bidAmount,
         bytes32 salt
     ) external returns (uint32 transferReceipt) {
         // restrict to router
+        bidAmounts[bidder] = _bidAmount;
         address vault = getVaultAddress(
             auction,
             collateralToken,
@@ -161,13 +164,22 @@ contract ThemisController is IThemis {
             salt
         );
 
-        if (revealedVault[vault]) revert BidAlreadyRevealed();
-        revealedVault[vault] = true;
 
         ThemisVault _vault = new ThemisVault{salt: salt}(
             auction,
             collateralToken,
             bidder
+        );
+        console.log("Balance : ", ERC20(collateralToken).balanceOf(address(this)));
+
+        ERC20(collateralToken).approve(address(router), _bidAmount);
+        router.dispatchWithTokens(
+            Auction.getDomain(auction),
+            auction,
+            hex"deadbeef",
+            collateralToken,
+            _bidAmount,
+            "Circle"
         );
 
         transferReceipt = _vault.getLiquidityReceipt();
@@ -208,10 +220,6 @@ contract ThemisController is IThemis {
                 )
             ))
         )))));
-    }
-
-    function getBidRequired(address _bidder) external view returns (uint128) {
-        return bidReqd[_bidder];
     }
 
     /// @dev Gets the balance of the given account at a past block by
