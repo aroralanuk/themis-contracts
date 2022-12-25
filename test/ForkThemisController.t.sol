@@ -41,6 +41,9 @@ contract MockThemisController is ThemisController {
 
 
 contract ThemisControllerTest is BaseTest {
+    uint32 originDomain = 5;                // goerli
+    uint32 remoteDomain = 0x6d6f2d61;       // moonbase-alpha
+
     IInterchainAccountRouter internal router;
 
     ThemisAuction internal auction;

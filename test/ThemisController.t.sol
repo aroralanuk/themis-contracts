@@ -56,10 +56,14 @@ contract ThemisControllerTest is BaseTest {
     ThemisAuction internal auction;
     MockThemisController internal controller;
 
+    uint32 remoteDomain;
+    uint32 domain;
+
     // liquidity layer mock
     MockHyperlaneEnvironment testEnv;
     string bridge = "Circle";
     CircleBridgeAdapter bridgeAdapter;
+    CircleBridgeAdapter remoteBridgeAdapter;
     MockCircleBridge circleBridge;
     MockCircleMessageTransmitter messageTransmitter;
 
@@ -67,41 +71,79 @@ contract ThemisControllerTest is BaseTest {
         super.setUp();
         vm.roll(block.number + 1_000_000);
 
-        originDomain = 1; // domain for auction
-        remoteDomain = 2; // domain for controller
+        remoteDomain = 1; // domain for auction
+        domain = 2; // domain for controller
 
-        testEnv = new MockHyperlaneEnvironment(remoteDomain, originDomain);
+        testEnv = new MockHyperlaneEnvironment(domain, remoteDomain);
         auction = new ThemisAuction("Ethereal Encounters", "EE", 10_000);
         auction.initialize(
             uint64(1 hours),
             uint64(2 hours),
-            uint128(0.1 ether)
+            uint128(50e6)
         );
 
 
         router = new ThemisRouter();
+        remoteRouter = new ThemisRouter();
+
         router.initialize(
-            address(testEnv.mailboxes(remoteDomain)),
-            originDomain
+            address(testEnv.mailboxes(domain)),
+            domain
         );
+        remoteRouter.initialize(
+            address(testEnv.mailboxes(remoteDomain)),
+            remoteDomain
+        );
+
         router.enrollRemoteRouter(
-            originDomain,
-            TypeCasts.addressToBytes32(alice)
+            remoteDomain,
+            TypeCasts.addressToBytes32(address(remoteRouter))
+        );
+        remoteRouter.enrollRemoteRouter(
+            domain,
+            TypeCasts.addressToBytes32(address(router))
+
         );
 
 
         circleBridge = new MockCircleBridge(usdc);
         messageTransmitter = new MockCircleMessageTransmitter(usdc);
         bridgeAdapter = new CircleBridgeAdapter();
+        remoteBridgeAdapter = new CircleBridgeAdapter();
+
         bridgeAdapter.initialize(
+            address(this),
+            address(circleBridge),
+            address(messageTransmitter),
+            address(router)
+        );
+        remoteBridgeAdapter.initialize(
             address(this),
             address(circleBridge),
             address(messageTransmitter),
             address(remoteRouter)
         );
+
+        bridgeAdapter.addToken(address(usdc), "USDC");
+        remoteBridgeAdapter.addToken(address(usdc), "USDC");
+
         router.setLiquidityLayerAdapter(
             bridge,
             address(bridgeAdapter)
+        );
+
+        bridgeAdapter.enrollRemoteRouter(
+            remoteDomain,
+            TypeCasts.addressToBytes32(address(remoteBridgeAdapter))
+        );
+        remoteBridgeAdapter.enrollRemoteRouter(
+            domain,
+            TypeCasts.addressToBytes32(address(bridgeAdapter))
+        );
+
+        remoteRouter.setLiquidityLayerAdapter(
+            bridge,
+            address(remoteBridgeAdapter)
         );
 
         controller = new MockThemisController(address(router));
@@ -109,21 +151,21 @@ contract ThemisControllerTest is BaseTest {
     }
 
     function testConnectAuction() public {
-        controller.connectAuction(originDomain, address(auction));
+        controller.connectAuction(remoteDomain, address(auction));
         assertEq(
             controller.auction(),
-            Auction.format(originDomain, address(auction))
+            Auction.format(remoteDomain, address(auction))
         );
     }
 
     function testConnectAuctionRepeat_Fail() public {
-        controller.connectAuction(originDomain, address(auction));
+        controller.connectAuction(remoteDomain, address(auction));
 
         vm.expectRevert();
-        controller.connectAuction(remoteDomain, address(auction));
+        controller.connectAuction(domain, address(auction));
         assertEq(
             controller.auction(),
-            Auction.format(originDomain, address(auction))
+            Auction.format(remoteDomain, address(auction))
         );
     }
 
@@ -131,14 +173,14 @@ contract ThemisControllerTest is BaseTest {
         vm.startPrank(alice);
 
         vm.expectRevert();
-        controller.connectAuction(originDomain, address(auction));
+        controller.connectAuction(remoteDomain, address(auction));
         assertEq(controller.auction(), Auction.format(0, address(0)));
 
         vm.stopPrank();
     }
 
     function testStartReveal() public {
-        controller.connectAuction(originDomain, address(auction));
+        controller.connectAuction(remoteDomain, address(auction));
         controller.startReveal();
 
         assertEq(controller.revealStartBlock(), block.number);
@@ -146,7 +188,7 @@ contract ThemisControllerTest is BaseTest {
     }
 
     function testStartRevealRepeat_Fail() public {
-        controller.connectAuction(originDomain, address(auction));
+        controller.connectAuction(remoteDomain, address(auction));
         controller.startReveal();
 
         vm.expectRevert();
@@ -154,7 +196,7 @@ contract ThemisControllerTest is BaseTest {
     }
 
     function testRevealBid_NotPlaced() public {
-        controller.connectAuction(originDomain, address(auction));
+        controller.connectAuction(remoteDomain, address(auction));
 
         vm.startPrank(alice);
         bytes32 salt = genBytes32();
@@ -180,7 +222,7 @@ contract ThemisControllerTest is BaseTest {
     }
 
     function testRevealBid_Placed() public {
-        controller.connectAuction(originDomain, address(auction));
+        controller.connectAuction(remoteDomain, address(auction));
 
         vm.startPrank(alice);
         bytes32 salt = genBytes32();
@@ -206,7 +248,7 @@ contract ThemisControllerTest is BaseTest {
     }
 
     function testRevealBid_DifferentBidder() public {
-        controller.connectAuction(originDomain, address(auction));
+        controller.connectAuction(remoteDomain, address(auction));
 
         vm.startPrank(alice);
         bytes32 salt = genBytes32();
@@ -231,8 +273,40 @@ contract ThemisControllerTest is BaseTest {
         );
     }
 
+    function testRevealBid_DifferentSalt() public {
+        controller.connectAuction(remoteDomain, address(auction));
+
+        vm.startPrank(alice);
+        bytes32 salt = genBytes32();
+        commitBid(bob, 100e6, salt);
+        skip(1.5 hours);
+        vm.stopPrank();
+
+        controller.startReveal();
+
+        bytes32 salt2 = genBytes32();
+        address vault = controller.revealBid(bob, salt2, nullProof());
+        controller.revealBidCallback(bob, 100e6, salt2, true);
+
+        assertTrue(
+            vault.code.length == 0,
+            "Vault should not be deployed"
+        );
+
+        assertEq(
+            usdc.balanceOf(address(vault)),
+            0,
+            "Wrong vault"
+        );
+        assertEq(
+            usdc.balanceOf(alice),
+            99_900e6,
+            "Alice should not get her bid amount refunded"
+        );
+    }
+
     function testDeployVaultOnReveal() public {
-        controller.connectAuction(originDomain, address(auction));
+        controller.connectAuction(remoteDomain, address(auction));
 
         vm.startPrank(alice);
         bytes32 salt = genBytes32();
@@ -242,24 +316,44 @@ contract ThemisControllerTest is BaseTest {
 
         controller.startReveal();
 
+        controller.setBalance(88e6);
         address vault = controller.revealBid(alice, salt, nullProof());
+        testEnv.processNextPendingMessage();
         controller.revealBidCallback(alice, 100e6, salt, true);
 
-
-        // TODO: fix this test
-        // controller.deployVaultOnReveal(alice, 88e6, salt);
+        controller.deployVaultOnReveal(alice, 88e6, salt);
 
         assertTrue(
-            vault.code.length == 0,
-            "Vault should not be deployed"
+            vault.code.length > 0,
+            "Vault should be deployed"
         );
 
-        // assertEq(
-        //     usdc.balanceOf(alice),
-        //     99_912e6,
-        //     "Alice should balance refunded"
-        // );
+        assertEq(
+            usdc.balanceOf(alice),
+            99_912e6,
+            "Alice should balance refunded"
+        );
 
+        bytes32 nonceId = messageTransmitter.hashSourceAndNonce(
+            bridgeAdapter.hyperlaneDomainToCircleDomain(
+                domain
+            ),
+            circleBridge.nextNonce()
+        );
+
+        messageTransmitter.process(
+            nonceId,
+            address(remoteBridgeAdapter),
+            88e6
+        );
+
+        testEnv.processNextPendingMessage();
+
+        assertEq(
+            usdc.balanceOf(address(auction)),
+            88e6,
+            "Auction didn't receives funds"
+        );
     }
 
 
@@ -274,7 +368,7 @@ contract ThemisControllerTest is BaseTest {
     {
 
         vault = controller.getVaultAddress(
-            Auction.format(originDomain, address(auction)),
+            Auction.format(remoteDomain, address(auction)),
             address(usdc),
             from,
             salt

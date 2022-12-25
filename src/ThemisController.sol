@@ -170,7 +170,6 @@ contract ThemisController is IThemis {
             collateralToken,
             bidder
         );
-        console.log("Balance : ", ERC20(collateralToken).balanceOf(address(this)));
 
         ERC20(collateralToken).approve(address(router), _bidAmount);
         router.dispatchWithTokens(

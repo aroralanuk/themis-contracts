@@ -35,8 +35,8 @@ abstract contract BaseTest is Test {
     string moonbaseRPC = vm.envString("MOONBASE_RPC_URL");
     uint256 remoteFork = vm.createFork(moonbaseRPC);
 
-    uint32 originDomain = 5;                // goerli
-    uint32 remoteDomain = 0x6d6f2d61;       // moonbase-alpa
+    // uint32 originDomain = 5;                // goerli
+    // uint32 remoteDomain = 0x6d6f2d61;       // moonbase-alpa
 
     uint entropy = 0;
 

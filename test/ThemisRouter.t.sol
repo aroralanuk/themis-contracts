@@ -215,8 +215,7 @@ contract ThemisRouterTest is BaseTest {
     function testDispatchToken_MovesTokens() public {
         vm.startPrank(alice);
         usdc.approve(address(spokeRouter), ex_amt);
-        // TODO: fix this test
-        // vm.expectRevert();
+
         spokeRouter.dispatchWithTokens(
             hubDomain,
             TypeCasts.addressToBytes32(address(recipient)),

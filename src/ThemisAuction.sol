@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
+import "forge-std/console.sol";
+
 import {ERC721} from "solmate/tokens/ERC721.sol";
+import {ILiquidityLayerMessageRecipient} from "@hyperlane-xyz/core/interfaces/ILiquidityLayerMessageRecipient.sol";
 
 import {Bids} from "src/lib/Bids.sol";
 import {Auction} from "src/lib/Auction.sol";
@@ -10,7 +13,7 @@ import {IThemis} from "src/IThemis.sol";
 import {ThemisController} from "src/ThemisController.sol";
 import {ThemisRouter} from "src/ThemisRouter.sol";
 
-contract ThemisAuction is IThemis, ERC721 {
+contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
     using Bids for Bids.Heap;
 
     string public BASE_ASSET_URI;
@@ -126,6 +129,16 @@ contract ThemisAuction is IThemis, ERC721 {
         if (id >= MAX_SUPPLY) revert InvalidTokenId();
         if (reserved[id] != to) revert NotReserved();
         super._mint(to, id);
+    }
+
+    function handleWithTokens(
+        uint32 _origin,
+        bytes32 _sender,
+        bytes calldata _data,
+        address _token,
+        uint256 _amount
+    ) external override {
+        // emit ReceivedMessage(_origin, _sender, string(_data), _token, _amount);
     }
 
     function getHighestBids() external view returns (Bids.Node[] memory) {
