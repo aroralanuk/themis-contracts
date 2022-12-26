@@ -10,11 +10,13 @@ interface IThemis {
     error AlreadyInitialized();
     error BidAlreadyRevealed();
     error BidLowerThanReserve();
+    error BidNotRevealed();
     error InvalidTokenId();
     error RevealAlreadyStarted();
     error NotInRevealPeriod();
     error NotReserved();
     error NotYetRevealBlock();
+    error VaultAlreadyDeployed();
 
     event AuctionInitialized(
         address indexed auction,
@@ -58,6 +60,14 @@ interface IThemis {
         bytes32 indexed auction,
         address indexed bidder,
         address indexed vault
+    );
+
+    event ReceivedToken (
+        uint32 origin,
+        bytes32 sender,
+        string data,
+        address token,
+        uint256 amount
     );
 
 }

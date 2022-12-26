@@ -138,7 +138,7 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
         address _token,
         uint256 _amount
     ) external override {
-        // emit ReceivedMessage(_origin, _sender, string(_data), _token, _amount);
+        emit ReceivedToken(_origin, _sender, string(_data), _token, _amount);
     }
 
     function getHighestBids() external view returns (Bids.Node[] memory) {

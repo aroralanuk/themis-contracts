@@ -11,6 +11,7 @@ import {CircleBridgeAdapter} from "@hyperlane-xyz/core/contracts/middleware/liqu
 
 import {Auction} from "src/lib/Auction.sol";
 
+import {IThemis} from "src/IThemis.sol";
 import {ThemisRouter} from "src/ThemisRouter.sol";
 import {ThemisAuction} from "src/ThemisAuction.sol";
 import {ThemisController} from "src/ThemisController.sol";
@@ -356,7 +357,69 @@ contract ThemisControllerTest is BaseTest {
         );
     }
 
+    function testDeployVaultOnReveal_NotRevealed() public {
+        controller.connectAuction(remoteDomain, address(auction));
 
+        vm.startPrank(alice);
+        bytes32 salt = genBytes32();
+        commitBid(alice, 100e6, salt);
+        skip(1.5 hours);
+        vm.stopPrank();
+
+        controller.startReveal();
+
+        controller.setBalance(88e6);
+        address vault = controller.revealBid(alice, salt, nullProof());
+        testEnv.processNextPendingMessage();
+        // controller.revealBidCallback(alice, 100e6, salt, true);
+
+        vm.expectRevert(IThemis.BidNotRevealed.selector);
+        controller.deployVaultOnReveal(alice, 88e6, salt);
+
+        assertTrue(
+            vault.code.length == 0,
+            "Vault should not be deployed"
+        );
+
+        assertEq(
+            usdc.balanceOf(address(auction)),
+            0,
+            "Auction received funds"
+        );
+    }
+
+    function testDeployVault_Fail_AlreadyDeployed() public {
+        controller.connectAuction(remoteDomain, address(auction));
+
+        vm.startPrank(alice);
+        bytes32 salt = genBytes32();
+        commitBid(alice, 100e6, salt);
+        skip(1.5 hours);
+        vm.stopPrank();
+
+        controller.startReveal();
+
+        controller.setBalance(88e6);
+        address vault = controller.revealBid(alice, salt, nullProof());
+        testEnv.processNextPendingMessage();
+        controller.revealBidCallback(alice, 100e6, salt, true);
+
+        controller.deployVaultOnReveal(alice, 88e6, salt);
+
+        assertTrue(
+            vault.code.length > 0,
+            "Vault should be deployed"
+        );
+
+        assertEq(
+            usdc.balanceOf(alice),
+            99_912e6,
+            "Alice should balance refunded"
+        );
+
+        vm.expectRevert(IThemis.VaultAlreadyDeployed.selector);
+        controller.deployVaultOnReveal(alice, 88e6, salt);
+    }
 
     function commitBid(
         address from,

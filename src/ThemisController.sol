@@ -87,9 +87,6 @@ contract ThemisController is IThemis {
             salt
         );
 
-        if (revealedVault[vault]) revert BidAlreadyRevealed();
-        revealedVault[vault] = true;
-
         uint128 vaultBalance = uint128(
             _getProvenAccountBalance(
                 proof.accountMerkleProof,
@@ -127,6 +124,15 @@ contract ThemisController is IThemis {
     ) public {
         address auctionContract = Auction.getAuctionAddress(auction);
 
+        address vault = getVaultAddress(
+            auction,
+            collateralToken,
+            _bidder,
+            _salt
+        );
+        if (revealedVault[vault]) revert BidAlreadyRevealed();
+        revealedVault[vault] = true;
+
         if (!success) {
             new ThemisVault{salt: _salt}(
                 auction,
@@ -155,7 +161,8 @@ contract ThemisController is IThemis {
         uint128 _bidAmount,
         bytes32 salt
     ) external returns (uint32 transferReceipt) {
-        // restrict to router
+        // TODO: restrict to router
+
         bidAmounts[bidder] = _bidAmount;
         address vault = getVaultAddress(
             auction,
@@ -164,6 +171,8 @@ contract ThemisController is IThemis {
             salt
         );
 
+        if (!revealedVault[vault]) revert BidNotRevealed();
+        if (vault.code.length != 0) revert VaultAlreadyDeployed();
 
         ThemisVault _vault = new ThemisVault{salt: salt}(
             auction,
