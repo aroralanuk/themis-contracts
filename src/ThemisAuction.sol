@@ -8,7 +8,6 @@ import {ILiquidityLayerMessageRecipient} from "@hyperlane-xyz/core/interfaces/IL
 
 import {Bids} from "src/lib/Bids.sol";
 import {Auction} from "src/lib/Auction.sol";
-import {Auction} from "src/lib/Auction.sol";
 import {IThemis} from "src/IThemis.sol";
 import {ThemisController} from "src/ThemisController.sol";
 import {ThemisRouter} from "src/ThemisRouter.sol";
@@ -32,6 +31,11 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
     mapping(uint256 => address) public reserved;
 
     ThemisRouter public router;
+    address public ROUTER_ADDRESS;
+
+    /*//////////////////////////////////////////////////////////////
+                               CONSTRUCTOR
+    //////////////////////////////////////////////////////////////*/
 
     constructor (
         string memory name,
@@ -40,13 +44,60 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
     ) ERC721(name, symbol) {
         collectionOwner = msg.sender;
         MAX_SUPPLY = _maxSupply;
+        collectionOwner = msg.sender;
     }
+
+    /*//////////////////////////////////////////////////////////////
+                               MODIFIERS
+    //////////////////////////////////////////////////////////////*/
+
+    modifier onlyOwner() {
+        if (msg.sender != collectionOwner) revert NotCollectionOwner();
+        _;
+    }
+
+    modifier onlyRouter() {
+        if (msg.sender != ROUTER_ADDRESS) revert NotRouter();
+        _;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                               ROUTER HANDLING
+    //////////////////////////////////////////////////////////////*/
+
+    function setRouter(address _router) external onlyOwner {
+        ROUTER_ADDRESS = _router;
+        router = ThemisRouter(_router);
+    }
+
+    function handleWithTokens(
+        uint32 _origin,
+        bytes32 _sender,
+        bytes calldata _data,
+        address _token,
+        uint256 _amount
+    ) external override {
+        emit ReceivedToken(_origin, _sender, string(_data), _token, _amount);
+    }
+
+        function getController(uint32 _domain) public view returns (address) {
+        return controllers[_domain];
+    }
+
+    function checkLiquidityReceipt(uint32 _receipt) external pure returns (bool) {
+        // TODO: check liquidity receipt
+        return _receipt == 0;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            CORE AUCTION LOGIC
+    //////////////////////////////////////////////////////////////*/
 
     function initialize(
         uint64 bidPeriod_,
         uint64 revealPeriod_,
         uint128 reservePrice_
-    ) external {
+    ) external onlyOwner {
         if (endOfBiddingPeriod != 0) revert AlreadyInitialized();
 
         endOfBiddingPeriod = uint64(block.timestamp) + bidPeriod_;
@@ -71,7 +122,7 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
         if (bidAmount < reservePrice) revert BidLowerThanReserve();
 
         // insert in order of bids
-        uint32 success = highestBids.insert(
+        uint32 currentPosition = highestBids.insert(
             Auction.getDomain(bidder),
             Auction.getAuctionAddress(bidder),
             bidAmount,
@@ -79,12 +130,12 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
         );
 
         emit BidRevealed(
-            address(this),
+            currentPosition,
             bidder,
             bidAmount
         );
 
-        return (success == 0, bidder, bidAmount, salt);
+        return (currentPosition == 0, bidder, bidAmount, salt);
     }
 
     // TODO: later
@@ -94,7 +145,7 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
         if (block.timestamp < endOfRevealPeriod) revert AuctionNotOver();
 
         Bids.Node memory bid;
-        for (uint256 i = 0; i < highestBids.totalBids; i++) {
+        for (uint i = 0; i < highestBids.totalBids; i++) {
             bid = highestBids.index[highestBids.array[i]];
 
             // accountRouter call -> check for liquidity
@@ -110,6 +161,13 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
             );
 
             _reserve(bid.bidderAddress, i);
+
+            emit BidShortlisted(
+                uint32(i),
+                bid.domain,
+                bid.bidderAddress,
+                bid.bidAmount
+            );
         }
 
         emit AuctionEnded();
@@ -119,6 +177,9 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
         reserved[id_] = bidder_;
     }
 
+    /*//////////////////////////////////////////////////////////////
+                            ERC721 LOGIC
+    //////////////////////////////////////////////////////////////*/
 
     function mint(uint256 id) external {
         _mint(msg.sender, id);
@@ -131,30 +192,11 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
         super._mint(to, id);
     }
 
-    function handleWithTokens(
-        uint32 _origin,
-        bytes32 _sender,
-        bytes calldata _data,
-        address _token,
-        uint256 _amount
-    ) external override {
-        emit ReceivedToken(_origin, _sender, string(_data), _token, _amount);
-    }
-
     function getHighestBids() external view returns (Bids.Node[] memory) {
         return highestBids.getAllBids();
     }
 
     function tokenURI(uint256 id) public view override returns (string memory) {
         return string(abi.encodePacked(BASE_ASSET_URI, id));
-    }
-
-    function getController(uint32 _domain) public view returns (address) {
-        return controllers[_domain];
-    }
-
-    function checkLiquidityReceipt(uint32 _receipt) external pure returns (bool) {
-        // TODO: check liquidity receipt
-        return _receipt == 0;
     }
 }

@@ -13,8 +13,10 @@ interface IThemis {
     error BidNotRevealed();
     error InvalidTokenId();
     error RevealAlreadyStarted();
+    error NotCollectionOwner();
     error NotInRevealPeriod();
     error NotReserved();
+    error NotRouter();
     error NotYetRevealBlock();
     error VaultAlreadyDeployed();
 
@@ -34,7 +36,7 @@ interface IThemis {
     );
 
     event BidRevealed(
-        address indexed auction,
+        uint32 indexed currentPosition,
         bytes32 indexed bidder,
         uint128 bidAmount
     );
@@ -70,4 +72,15 @@ interface IThemis {
         uint256 amount
     );
 
+    event BidShortlisted (
+        uint32 indexed mintIndex,
+        uint32 indexed domain,
+        address indexed bidder,
+        uint128 bidAmount
+    );
+
+    event Reserved (
+        address indexed to,
+        uint256 indexed id
+    );
 }

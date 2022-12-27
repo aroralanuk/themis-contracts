@@ -4,7 +4,12 @@ out = 'out'
 libs = ['lib']
 fs_permissions = [{ access = "read", path = "./"}]
 
+[rpc_endpoints]
+goerli = "${GOERLI_RPC_URL}"
+mumbai = "${MUMBAI_RPC_URL}"
+
 [etherscan]
-goerli = { key = "${ETHERSCAN_API_KEY}" }
+goerli = { key = "${ETHERSCAN_API_KEY}", url = "https://api-goerli.etherscan.io/api" }
+mumbai = { key = "${POLYSCAN_API_KEY}" }
 
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
