@@ -11,7 +11,7 @@ library XAddress {
         Info storage self,
         bytes32 xaddress
     ) internal {
-        self._domain = uint32(uint256(xaddress)) >> 160;
+        self._domain = uint32(uint256(xaddress) >> 160);
         self._address = address(uint160(uint256(xaddress)));
     }
 

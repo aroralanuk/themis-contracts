@@ -120,9 +120,8 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
     }
 
     function checkBid(bytes32 bidder, uint128 bidAmount, bytes32 salt) external returns (bool, bytes32, uint128, bytes32){
+        // TODO: access control
         _bidder.init(bidder);
-        console.log("checking for bidder");
-        console.logBytes32(_bidder.toBytes32());
         if (block.timestamp < endOfBiddingPeriod ||
         block.timestamp > endOfRevealPeriod) revert NotInRevealPeriod();
         if (bidAmount < reservePrice) revert BidLowerThanReserve();
@@ -206,6 +205,18 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
 
     function tokenURI(uint256 id) public view override returns (string memory) {
         return string(abi.encodePacked(BASE_ASSET_URI, id));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                ONLY FOR TESTING, REMOVE IN PRODUCTION
+    //////////////////////////////////////////////////////////////*/
+
+    function endBidPeriod() external onlyOwner {
+        endOfBiddingPeriod = uint64(block.timestamp);
+    }
+
+    function endRevealPeriod() external onlyOwner {
+        endOfRevealPeriod = uint64(block.timestamp);
     }
 
 
