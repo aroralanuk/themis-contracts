@@ -1,145 +1,144 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.15;
+// // SPDX-License-Identifier: MIT
+// pragma solidity ^0.8.15;
 
-import "forge-std/console.sol";
+// import "forge-std/console.sol";
 
-import {IInterchainAccountRouter} from "@hyperlane-xyz/core/interfaces/IInterchainAccountRouter.sol";
-
-import {Auction} from "src/lib/Auction.sol";
-
-import {ThemisAuction} from "src/ThemisAuction.sol";
-import {ThemisController} from "src/ThemisController.sol";
-
-import {BaseTest} from "./utils/BaseTest.sol";
-
-contract MockThemisController is ThemisController {
-    uint256 bal;
-
-    constructor(address accountRouterAddress_)
-        ThemisController(accountRouterAddress_) {}
-
-    function setBalance(uint256 _bal) external {
-        bal = _bal;
-    }
-
-    // Overridden so we don't have to deal with proofs here.
-    // See BalanceProofTest.sol for LibBalanceProof unit tests.
-    function _getProvenAccountBalance(
-        bytes[] memory /* proof */,
-        bytes memory /* blockHeaderRLP */,
-        bytes32 /* blockHash */,
-        address /* account */
-    )
-        internal
-        override
-        view
-        returns (uint256 accountBalance)
-    {
-        return bal;
-    }
-}
+// import {IInterchainAccountRouter} from "@hyperlane-xyz/core/interfaces/IInterchainAccountRouter.sol";
 
 
-contract ThemisControllerTest is BaseTest {
-    uint32 originDomain = 5;                // goerli
-    uint32 remoteDomain = 0x6d6f2d61;       // moonbase-alpha
+// import {ThemisAuction} from "src/ThemisAuction.sol";
+// import {ThemisController} from "src/ThemisController.sol";
 
-    IInterchainAccountRouter internal router;
+// import {BaseTest} from "./utils/BaseTest.sol";
 
-    ThemisAuction internal auction;
-    MockThemisController internal controller;
+// contract MockThemisController is ThemisController {
+//     uint256 bal;
 
-    function setUp() public override {
-        super.setUp();
+//     constructor(address accountRouterAddress_)
+//         ThemisController(accountRouterAddress_) {}
 
-        vm.selectFork(originFork);
-        // vm.startBroadcast(pk);
+//     function setBalance(uint256 _bal) external {
+//         bal = _bal;
+//     }
 
-        auction = new ThemisAuction("Ethereal Encounters", "EE", 10_000);
-        auction.initialize(
-            uint64(1 hours),
-            uint64(2 hours),
-            uint128(0.1 ether)
-        );
+//     // Overridden so we don't have to deal with proofs here.
+//     // See BalanceProofTest.sol for LibBalanceProof unit tests.
+//     function _getProvenAccountBalance(
+//         bytes[] memory /* proof */,
+//         bytes memory /* blockHeaderRLP */,
+//         bytes32 /* blockHash */,
+//         address /* account */
+//     )
+//         internal
+//         override
+//         view
+//         returns (uint256 accountBalance)
+//     {
+//         return bal;
+//     }
+// }
 
-        vm.makePersistent(address(auction));
-        assert(vm.isPersistent(address(auction)));
-        vm.selectFork(remoteFork);
-        assert(vm.isPersistent(address(auction)));
 
-        router = IInterchainAccountRouter(MOONBASE_ALPHA_ICA);
+// contract ThemisControllerTest is BaseTest {
+//     uint32 originDomain = 5;                // goerli
+//     uint32 remoteDomain = 0x6d6f2d61;       // moonbase-alpha
 
-        controller = new MockThemisController(address(router));
-    }
+//     IInterchainAccountRouter internal router;
 
-    function testConnectAuction() public {
-        controller.connectAuction(originDomain, address(auction));
-        assertEq(
-            controller.auction(),
-            Auction.format(originDomain, address(auction))
-        );
-    }
+//     ThemisAuction internal auction;
+//     MockThemisController internal controller;
 
-    function testConnectAuctionRepeat_Fail() public {
-        controller.connectAuction(originDomain, address(auction));
+//     function setUp() public override {
+//         super.setUp();
 
-        vm.expectRevert();
-        controller.connectAuction(remoteDomain, address(auction));
-        assertEq(
-            controller.auction(),
-            Auction.format(originDomain, address(auction))
-        );
-    }
+//         vm.selectFork(originFork);
+//         // vm.startBroadcast(pk);
 
-    function testConnectAuction_FailAccessControl() public {
+//         auction = new ThemisAuction("Ethereal Encounters", "EE", 10_000);
+//         auction.initialize(
+//             uint64(1 hours),
+//             uint64(2 hours),
+//             uint128(0.1 ether)
+//         );
 
-        vm.startPrank(alice);
-        vm.expectRevert();
-        controller.connectAuction(originDomain, address(auction));
-        assertEq(controller.auction(), Auction.format(0, address(0)));
+//         vm.makePersistent(address(auction));
+//         assert(vm.isPersistent(address(auction)));
+//         vm.selectFork(remoteFork);
+//         assert(vm.isPersistent(address(auction)));
 
-        vm.stopPrank();
-    }
+//         router = IInterchainAccountRouter(MOONBASE_ALPHA_ICA);
 
-    function testStartReveal() public {
-        controller.connectAuction(originDomain, address(auction));
-        controller.startReveal();
+//         controller = new MockThemisController(address(router));
+//     }
 
-        assertEq(controller.revealStartBlock(), block.number);
-        assertEq(controller.storedBlockHash(), blockhash(block.number - 256));
-    }
+//     function testConnectAuction() public {
+//         controller.connectAuction(originDomain, address(auction));
+//         assertEq(
+//             controller.auction(),
+//             Auction.format(originDomain, address(auction))
+//         );
+//     }
 
-    function testStartRevealRepeat_Fail() public {
-        controller.connectAuction(originDomain, address(auction));
-        controller.startReveal();
+//     function testConnectAuctionRepeat_Fail() public {
+//         controller.connectAuction(originDomain, address(auction));
 
-        vm.expectRevert();
-        controller.startReveal();
-    }
+//         vm.expectRevert();
+//         controller.connectAuction(remoteDomain, address(auction));
+//         assertEq(
+//             controller.auction(),
+//             Auction.format(originDomain, address(auction))
+//         );
+//     }
 
-    function testRevealBid() public {
-        controller.connectAuction(originDomain, 0xC3A77bEf47d1babaBb3D70dfc2CaF160293dbEF2);
-        controller.startReveal();
+//     function testConnectAuction_FailAccessControl() public {
 
-        // TODO: fix this
-        // controller.revealBid(address(this), 1 ether, genBytes32(), nullProof());
+//         vm.startPrank(alice);
+//         vm.expectRevert();
+//         controller.connectAuction(originDomain, address(auction));
+//         assertEq(controller.auction(), Auction.format(0, address(0)));
 
-        // cons
-        // assertEq(controller.bids(1 ether), 1);
-    }
+//         vm.stopPrank();
+//     }
 
-    // function testGoerli() public {
-    //     vm.selectFork(goerliFork);
-    //     ThemisAuction(0xC3A77bEf47d1babaBb3D70dfc2CaF160293dbEF2).call(
-    //         abi.encodeWithSignature("initialize(uint64,uint64,uint128)", 1, 2, 3)
-    //     );
-    // }
+//     function testStartReveal() public {
+//         controller.connectAuction(originDomain, address(auction));
+//         controller.startReveal();
 
-    function nullProof()
-        private
-        pure
-        returns (ThemisController.CollateralizationProof memory proof)
-    {
-        return proof;
-    }
-}
+//         assertEq(controller.revealStartBlock(), block.number);
+//         assertEq(controller.storedBlockHash(), blockhash(block.number - 256));
+//     }
+
+//     function testStartRevealRepeat_Fail() public {
+//         controller.connectAuction(originDomain, address(auction));
+//         controller.startReveal();
+
+//         vm.expectRevert();
+//         controller.startReveal();
+//     }
+
+//     function testRevealBid() public {
+//         controller.connectAuction(originDomain, 0xC3A77bEf47d1babaBb3D70dfc2CaF160293dbEF2);
+//         controller.startReveal();
+
+//         // TODO: fix this
+//         // controller.revealBid(address(this), 1 ether, genBytes32(), nullProof());
+
+//         // cons
+//         // assertEq(controller.bids(1 ether), 1);
+//     }
+
+//     // function testGoerli() public {
+//     //     vm.selectFork(goerliFork);
+//     //     ThemisAuction(0xC3A77bEf47d1babaBb3D70dfc2CaF160293dbEF2).call(
+//     //         abi.encodeWithSignature("initialize(uint64,uint64,uint128)", 1, 2, 3)
+//     //     );
+//     // }
+
+//     function nullProof()
+//         private
+//         pure
+//         returns (ThemisController.CollateralizationProof memory proof)
+//     {
+//         return proof;
+//     }
+// }

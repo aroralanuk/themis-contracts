@@ -236,6 +236,10 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
         emit LiquidityLayerAdapterSet(_bridge, _adapter);
     }
 
+    function getDomain() external view returns (uint32) {
+        return DOMAIN;
+    }
+
     function _getAdapter(string memory _bridge)
         public
         view

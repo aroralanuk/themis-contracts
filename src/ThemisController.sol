@@ -5,7 +5,7 @@ import "forge-std/console.sol";
 
 import {ERC20} from "solmate/tokens/ERC20.sol";
 
-import {Auction} from "src/lib/Auction.sol";
+import {XAddress} from "src/lib/XAddress.sol";
 import {LibBalanceProof} from "src/lib/LibBalanceProof.sol";
 
 import {IThemis} from "src/IThemis.sol";
@@ -15,7 +15,12 @@ import {ThemisRouter} from "src/ThemisRouter.sol";
 
 
 contract ThemisController is IThemis {
-    bytes32 public auction;
+    using XAddress for XAddress.Info;
+
+    XAddress.Info internal _auction;
+    XAddress.Info internal _router;
+    XAddress.Info internal _bidder;
+
     mapping(address => bool) revealedVault;
 
     address owner;
@@ -40,27 +45,33 @@ contract ThemisController is IThemis {
         bytes blockHeaderRLP;
     }
 
-    ThemisRouter router;
+    ThemisRouter routerContract;
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert AccessControl();
         _;
     }
 
-    constructor(address routerAddress_) {
-        router = ThemisRouter(routerAddress_);
+    constructor(address router_) {
+        routerContract = ThemisRouter(router_);
+        _router.init(routerContract.getDomain(), router_);
         owner = msg.sender;
+    }
+
+    function auction() public view returns (bytes32) {
+        return _auction.toBytes32();
     }
 
     function connectAuction(uint32 domain_, address contract_)
         onlyOwner external
     {
-        if (auction != bytes32(0)) revert AuctionAlreadyConnected();
-        auction = Auction.format(domain_, contract_);
+        if (_auction.toBytes32() != bytes32(0))
+            revert AuctionAlreadyConnected();
+        _auction.init(domain_, contract_);
     }
 
-    function setCollateralToken(address _token) public onlyOwner {
-        collateralToken = _token;
+    function setCollateralToken(address token_) public onlyOwner {
+        collateralToken = token_;
     }
 
     function startReveal() external onlyOwner {
@@ -76,117 +87,119 @@ contract ThemisController is IThemis {
     }
 
     function revealBid(
-        address bidder,
-        bytes32 salt,
-        CollateralizationProof calldata proof
+        address bidder_,
+        bytes32 salt_,
+        CollateralizationProof calldata proof_
     ) external returns (address vault){
         vault = getVaultAddress(
-            auction,
+            _auction.toBytes32(),
             collateralToken,
-            bidder,
-            salt
+            bidder_,
+            salt_
         );
 
         uint128 vaultBalance = uint128(
             _getProvenAccountBalance(
-                proof.accountMerkleProof,
-                proof.blockHeaderRLP,
+                proof_.accountMerkleProof,
+                proof_.blockHeaderRLP,
                 storedBlockHash,
                 vault
             )
         );
 
-        address auctionContract = Auction.getAuctionAddress(auction);
+        _bidder.init(_router.getDomain(), bidder_);
 
-        router.dispatchWithCallback(
-            Auction.getDomain(auction),
-            auctionContract,
+        routerContract.dispatchWithCallback(
+            _auction.getDomain(),
+            _auction.getAddress(),
             abi.encodeCall(
-                ThemisAuction(auctionContract).checkBid,
-                (Auction.format(1, bidder), vaultBalance, salt)
+                ThemisAuction(_auction.getAddress()).checkBid,
+                (
+                    _bidder.toBytes32(),
+                    vaultBalance,
+                    salt_
+                )
             ),
             abi.encodePacked(this.revealBidCallback.selector)
         );
 
         emit BidProvenRemote(
             block.timestamp,
-            auction,
-            bidder,
+            _auction.toBytes32(),
+            bidder_,
             vaultBalance
         );
     }
 
     function revealBidCallback(
-        address _bidder,
-        uint128 _bidAmount,
-        bytes32 _salt,
-        bool success
+        address bidder_,
+        uint128 bidAmount_,
+        bytes32 salt_,
+        bool success_
     ) public {
-        address auctionContract = Auction.getAuctionAddress(auction);
-
         address vault = getVaultAddress(
-            auction,
+            _auction.toBytes32(),
             collateralToken,
-            _bidder,
-            _salt
+            bidder_,
+            salt_
         );
         if (revealedVault[vault]) revert BidAlreadyRevealed();
         revealedVault[vault] = true;
 
-        if (!success) {
-            new ThemisVault{salt: _salt}(
-                auction,
+        if (!success_) {
+            new ThemisVault{salt: salt_}(
+                _auction.toBytes32(),
                 collateralToken,
-                _bidder
+                bidder_
             );
 
             emit BidFailed(
                 block.timestamp,
-                auctionContract,
-                _bidder,
-                _bidAmount
+                _auction.getAddress(),
+                bidder_,
+                bidAmount_
             );
         } else {
             emit BidSuccessfullyPlaced(
                 block.timestamp,
-                auctionContract,
-                _bidder,
-                _bidAmount
+                _auction.getAddress(),
+                bidder_,
+                bidAmount_
             );
         }
     }
 
     function deployVaultOnReveal(
-        address bidder,
-        uint128 _bidAmount,
-        bytes32 salt
+        address bidder_,
+        uint128 bidAmount_,
+        bytes32 salt_
     ) external returns (uint32 transferReceipt) {
         // TODO: restrict to router
 
-        bidAmounts[bidder] = _bidAmount;
+        bidAmounts[bidder_] = bidAmount_;
         address vault = getVaultAddress(
-            auction,
+            _auction.toBytes32(),
             collateralToken,
-            bidder,
-            salt
+            bidder_,
+            salt_
         );
 
         if (!revealedVault[vault]) revert BidNotRevealed();
         if (vault.code.length != 0) revert VaultAlreadyDeployed();
 
-        ThemisVault _vault = new ThemisVault{salt: salt}(
-            auction,
+        ThemisVault _vault = new ThemisVault{salt: salt_}(
+            _auction.toBytes32(),
             collateralToken,
-            bidder
+            bidder_
         );
 
-        ERC20(collateralToken).approve(address(router), _bidAmount);
-        router.dispatchWithTokens(
-            Auction.getDomain(auction),
-            auction,
+        ERC20(collateralToken).approve(_router.getAddress(), bidAmount_);
+        routerContract.dispatchWithTokens(
+            _auction.getDomain(),
+            _auction.toBytes32(),
             hex"deadbeef",
             collateralToken,
-            _bidAmount,
+            bidAmount_,
             "Circle"
         );
 
@@ -194,8 +207,8 @@ contract ThemisController is IThemis {
         // transfer receipt
 
         emit VaultDeployed(
-            auction,
-            bidder,
+            _auction.toBytes32(),
+            bidder_,
             vault
         );
     }
@@ -203,28 +216,28 @@ contract ThemisController is IThemis {
 
     /// @notice computes the `CREATE2` address of the `ThemisVault` with the
     /// given paramters. The vault may not be deployed yet.
-    /// @param _auction The auction for which the vault is being created
-    /// @param _collateralToken The collateral token used for the vault
-    /// @param bidder The bidder who deposited the collateral to this vault
-    /// @param salt The salt used to create the vault
+    /// @param auction_ The auction for which the vault is being created
+    /// @param collateralToken_ The collateral token used for the vault
+    /// @param bidder_ The bidder who deposited the collateral to this vault
+    /// @param salt_ The salt used to create the vault
     /// @return vault The address of the vault
     function getVaultAddress(
-        bytes32 _auction,
-        address _collateralToken,
-        address bidder,
-        bytes32 salt
+        bytes32 auction_,
+        address collateralToken_,
+        address bidder_,
+        bytes32 salt_
     ) public view returns (address vault) {
         // Compute `CREATE2` address of vault
         return address(uint160(uint256(keccak256(abi.encodePacked(
             bytes1(0xff),
             address(this),
-            salt,
+            salt_,
             keccak256(abi.encodePacked(
                 type(ThemisVault).creationCode,
                 abi.encode(
-                    _auction,
-                    _collateralToken,
-                    bidder
+                    auction_,
+                    collateralToken_,
+                    bidder_
                 )
             ))
         )))));
@@ -234,19 +247,19 @@ contract ThemisController is IThemis {
     ///      traversing the given Merkle proof for the state trie. Wraps
     ///      LibBalanceProof.getProvenAccountBalance so that this function
     ///      can be overriden for testing.
-    /// @param proof A Merkle proof for the given account's balance in
+    /// @param proof_ A Merkle proof for the given account's balance in
     ///        the state trie of a past block.
-    /// @param blockHeaderRLP The RLP-encoded block header for the past
+    /// @param blockHeaderRLP_ The RLP-encoded block header for the past
     ///        block for which the balance is being queried.
-    /// @param blockHash The expected blockhash. Should be equal to the
+    /// @param blockHash_ The expected blockhash. Should be equal to the
     ///        Keccak256 hash of `blockHeaderRLP`.
-    /// @param account The account whose past balance is being queried.
+    /// @param account_ The account whose past balance is being queried.
     /// @return accountBalance The proven past balance of the account.
     function _getProvenAccountBalance(
-        bytes[] memory proof,
-        bytes memory blockHeaderRLP,
-        bytes32 blockHash,
-        address account
+        bytes[] memory proof_,
+        bytes memory blockHeaderRLP_,
+        bytes32 blockHash_,
+        address account_
     )
         internal
         virtual
@@ -254,10 +267,10 @@ contract ThemisController is IThemis {
         returns (uint256 accountBalance)
     {
         return LibBalanceProof.getProvenAccountBalance(
-            proof,
-            blockHeaderRLP,
-            blockHash,
-            account
+            proof_,
+            blockHeaderRLP_,
+            blockHash_,
+            account_
         );
     }
 

@@ -8,9 +8,7 @@ import {MockERC20} from "test/mock/MockERC20.sol";
 import {TypeCasts} from "@hyperlane-xyz/core/contracts/libs/TypeCasts.sol";
 import {CircleBridgeAdapter} from "@hyperlane-xyz/core/contracts/middleware/liquidity-layer/adapters/CircleBridgeAdapter.sol";
 
-
-import {Auction} from "src/lib/Auction.sol";
-
+import {XAddress} from "src/lib/XAddress.sol";
 import {IThemis} from "src/IThemis.sol";
 import {ThemisRouter} from "src/ThemisRouter.sol";
 import {ThemisAuction} from "src/ThemisAuction.sol";
@@ -51,9 +49,12 @@ contract MockThemisController is ThemisController {
 
 
 contract ThemisControllerTest is BaseTest {
+    using XAddress for XAddress.Info;
+
     ThemisRouter internal router;
     ThemisRouter internal remoteRouter;
 
+    XAddress.Info internal _auction;
     ThemisAuction internal auction;
     MockThemisController internal controller;
 
@@ -153,9 +154,11 @@ contract ThemisControllerTest is BaseTest {
 
     function testConnectAuction() public {
         controller.connectAuction(remoteDomain, address(auction));
+
+        _auction.init(remoteDomain, address(auction));
         assertEq(
             controller.auction(),
-            Auction.format(remoteDomain, address(auction))
+            _auction.toBytes32()
         );
     }
 
@@ -164,9 +167,11 @@ contract ThemisControllerTest is BaseTest {
 
         vm.expectRevert();
         controller.connectAuction(domain, address(auction));
+
+        _auction.init(remoteDomain, address(auction));
         assertEq(
             controller.auction(),
-            Auction.format(remoteDomain, address(auction))
+            _auction.toBytes32()
         );
     }
 
@@ -175,7 +180,9 @@ contract ThemisControllerTest is BaseTest {
 
         vm.expectRevert();
         controller.connectAuction(remoteDomain, address(auction));
-        assertEq(controller.auction(), Auction.format(0, address(0)));
+
+        _auction.init(0, address(0));
+        assertEq(controller.auction(), _auction.toBytes32());
 
         vm.stopPrank();
     }
@@ -430,8 +437,9 @@ contract ThemisControllerTest is BaseTest {
         returns (address vault)
     {
 
+        _auction.init(remoteDomain, address(auction));
         vault = controller.getVaultAddress(
-            Auction.format(remoteDomain, address(auction)),
+            _auction.toBytes32(),
             address(usdc),
             from,
             salt

@@ -4,7 +4,7 @@ pragma solidity ^0.8.15;
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
 
-import {Auction} from "src/lib/Auction.sol";
+import {XAddress} from "src/lib/XAddress.sol";
 import {Bids} from "src/lib/Bids.sol";
 
 import {ThemisAuction} from "src/ThemisAuction.sol";
@@ -15,6 +15,9 @@ import {BaseTest} from "test/utils/BaseTest.sol";
 
 contract ThemisAuctionTest is BaseTest {
     using Bids for Bids.Heap;
+    using XAddress for XAddress.Info;
+
+    XAddress.Info internal _bidder;
     ThemisAuction internal auction;
 
     uint256 constant MAX_SUPPLY = 3;
@@ -46,8 +49,9 @@ contract ThemisAuctionTest is BaseTest {
             uint128(0.1 ether)
         );
 
+        _bidder.init(1, alice);
         vm.expectRevert(IThemis.NotInRevealPeriod.selector);
-        auction.checkBid(Auction.format(1,alice), 0.2 ether, salt);
+        auction.checkBid(_bidder.toBytes32(), 0.2 ether, salt);
     }
 
     function testCheckBid_Ascending() public {
@@ -68,9 +72,9 @@ contract ThemisAuctionTest is BaseTest {
                 bidAmount: testBids[i],
                 bidTimestamp: uint64(block.timestamp + i)
             });
+            _bidder.init(testDomains[i], testUsers[i]);
             auction.checkBid(
-                Auction.format(testDomains[i],
-                testUsers[i]),
+                _bidder.toBytes32(),
                 testBids[i],
                 salt
             );
@@ -92,9 +96,9 @@ contract ThemisAuctionTest is BaseTest {
             uint i = j - 1;
             salt = genBytes32();
 
+            _bidder.init(testDomains[i], testUsers[i]);
             auction.checkBid(
-                Auction.format(testDomains[i],
-                testUsers[i]),
+                _bidder.toBytes32(),
                 testBids[i],
                 salt
             );
@@ -117,9 +121,9 @@ contract ThemisAuctionTest is BaseTest {
             salt = genBytes32();
             // [alice, bob, charlie]
             uint r = i * 386_231 % 3;
+            _bidder.init(testDomains[r], testUsers[r]);
             auction.checkBid(
-                Auction.format(testDomains[r],
-                testUsers[r]),
+                _bidder.toBytes32(),
                 testBids[r],
                 salt
             );
@@ -149,9 +153,9 @@ contract ThemisAuctionTest is BaseTest {
                     bidTimestamp: uint64(block.timestamp + i)
                 });
             }
+            _bidder.init(testDomains[i], testUsers[i]);
             auction.checkBid(
-                Auction.format(testDomains[i],
-                testUsers[i]),
+                _bidder.toBytes32(),
                 testBids[i],
                 salt
             );
@@ -187,9 +191,9 @@ contract ThemisAuctionTest is BaseTest {
                     bidTimestamp: uint64(block.timestamp + i)
                 });
             }
+            _bidder.init(testDomains[i], testUsers[i]);
             auction.checkBid(
-                Auction.format(testDomains[i],
-                testUsers[i]),
+                _bidder.toBytes32(),
                 testBids[i],
                 salt
             );
@@ -226,9 +230,9 @@ contract ThemisAuctionTest is BaseTest {
                     bidTimestamp: uint64(block.timestamp + i)
                 });
             }
+            _bidder.init(testDomains[i], testUsers[i]);
             auction.checkBid(
-                Auction.format(testDomains[i],
-                testUsers[i]),
+                _bidder.toBytes32(),
                 testBids[i],
                 salt
             );

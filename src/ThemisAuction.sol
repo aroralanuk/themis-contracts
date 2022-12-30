@@ -7,12 +7,13 @@ import {ERC721} from "solmate/tokens/ERC721.sol";
 import {ILiquidityLayerMessageRecipient} from "@hyperlane-xyz/core/interfaces/ILiquidityLayerMessageRecipient.sol";
 
 import {Bids} from "src/lib/Bids.sol";
-import {Auction} from "src/lib/Auction.sol";
+import {XAddress} from "src/lib/XAddress.sol";
 import {IThemis} from "src/IThemis.sol";
 import {ThemisController} from "src/ThemisController.sol";
 import {ThemisRouter} from "src/ThemisRouter.sol";
 
 contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
+    using XAddress for XAddress.Info;
     using Bids for Bids.Heap;
 
     string public BASE_ASSET_URI;
@@ -22,6 +23,7 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
     uint256 public immutable MAX_SUPPLY;
 
     Bids.Heap public highestBids;
+    XAddress.Info internal _bidder;
 
     uint64 public endOfBiddingPeriod;
     uint64 public endOfRevealPeriod;
@@ -38,12 +40,12 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
     //////////////////////////////////////////////////////////////*/
 
     constructor (
-        string memory name,
-        string memory symbol,
-        uint256 _maxSupply
-    ) ERC721(name, symbol) {
+        string memory name_,
+        string memory symbol_,
+        uint256 maxSupply_
+    ) ERC721(name_, symbol_) {
         collectionOwner = msg.sender;
-        MAX_SUPPLY = _maxSupply;
+        MAX_SUPPLY = maxSupply_;
         collectionOwner = msg.sender;
     }
 
@@ -65,9 +67,9 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
                                ROUTER HANDLING
     //////////////////////////////////////////////////////////////*/
 
-    function setRouter(address _router) external onlyOwner {
-        ROUTER_ADDRESS = _router;
-        router = ThemisRouter(_router);
+    function setRouter(address router_) external onlyOwner {
+        ROUTER_ADDRESS = router_;
+        router = ThemisRouter(router_);
     }
 
     function handleWithTokens(
@@ -80,7 +82,7 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
         emit ReceivedToken(_origin, _sender, string(_data), _token, _amount);
     }
 
-        function getController(uint32 _domain) public view returns (address) {
+    function getController(uint32 _domain) public view returns (address) {
         return controllers[_domain];
     }
 
@@ -110,29 +112,35 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
         emit AuctionInitialized(
             address(this),
             msg.sender,
-            bidPeriod_,
-            revealPeriod_,
+            uint64(block.timestamp),
+            endOfBiddingPeriod,
+            endOfRevealPeriod,
             reservePrice
         );
     }
 
     function checkBid(bytes32 bidder, uint128 bidAmount, bytes32 salt) external returns (bool, bytes32, uint128, bytes32){
+        _bidder.init(bidder);
+        console.log("checking for bidder");
+        console.logBytes32(_bidder.toBytes32());
         if (block.timestamp < endOfBiddingPeriod ||
         block.timestamp > endOfRevealPeriod) revert NotInRevealPeriod();
         if (bidAmount < reservePrice) revert BidLowerThanReserve();
 
         // insert in order of bids
         uint32 currentPosition = highestBids.insert(
-            Auction.getDomain(bidder),
-            Auction.getAuctionAddress(bidder),
+            _bidder.getDomain(),
+            _bidder.getAddress(),
             bidAmount,
             uint64(block.timestamp) // fixme: use actual time
         );
 
         emit BidRevealed(
             currentPosition,
-            bidder,
-            bidAmount
+            _bidder.getDomain(),
+            _bidder.getAddress(),
+            bidAmount,
+            uint64(block.timestamp)
         );
 
         return (currentPosition == 0, bidder, bidAmount, salt);
@@ -199,4 +207,6 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
     function tokenURI(uint256 id) public view override returns (string memory) {
         return string(abi.encodePacked(BASE_ASSET_URI, id));
     }
+
+
 }

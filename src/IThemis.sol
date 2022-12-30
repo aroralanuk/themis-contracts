@@ -23,8 +23,9 @@ interface IThemis {
     event AuctionInitialized(
         address indexed auction,
         address indexed owner,
-        uint64 bidPeriod,
-        uint64 revealPeriod,
+        uint64 auctionStart,
+        uint64 BidDeadline,
+        uint64 RevealDeadline,
         uint128 reservePrice
     );
 
@@ -37,8 +38,10 @@ interface IThemis {
 
     event BidRevealed(
         uint32 indexed currentPosition,
-        bytes32 indexed bidder,
-        uint128 bidAmount
+        uint32 indexed domain,
+        address indexed bidderAddress,
+        uint128 amount,
+        uint64 timestamp
     );
 
     event BidFailed(
