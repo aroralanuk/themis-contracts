@@ -17,3 +17,6 @@ deploy-testnet: deploy-auction save-auction-address deploy-controller
 	echo "Deployed successfully to Goerli and Mumbai"
 
 verify-contract :; forge verify-contract 0x4390c57290d6432801fa973530377973c647cd66 src/ThemisAuction.sol:ThemisAuction --chain-id 5 --watch
+
+# More commands
+init-auction :; cast send ${AUCTION} "initialize(uint64,uint64,uint128)" 432000 86400 5000000 --rpc-url ${GOERLI_RPC_URL} --private-key ${DEPLOYER_PRIVATE_KEY}
