@@ -162,10 +162,26 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
         if (block.timestamp < endOfRevealPeriod) revert AuctionNotOver();
 
         Bids.Element[] memory bids = highestBids.getAllBids();
-        if (bids.length == 0) revert NoBids();
+
+
+        if (bids.length == 0) {
+            emit AuctionEnded();
+            return;
+        }
+
+        if (bids.length == 1) {
+            Bids.Element[] memory temp = new Bids.Element[](2);
+            for (uint i=0;i<2;i++) {
+                temp[i] = bids[0];
+            }
+
+            bids = temp;
+        }
+
         for (uint i = 0; i < bids.length - 1; i++) {
             // accountRouter call -> check for liquidity
             uint32 destDomain = bids[i].domain;
+            console.log("bids.length", bids[i].bidderAddress);
             router.dispatchWithCallback(
                 destDomain,
                 getController(destDomain),
@@ -175,6 +191,8 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
                 ),
                 abi.encodePacked(this.checkLiquidityReceipt.selector)
             );
+
+            console.log("working");
 
             _reserve(bids[i].bidderAddress, i);
 

@@ -44,4 +44,5 @@ jobs:
         id: test
         env:
           MOONBASE_RPC_URL: ${{ secrets.MOONBASE_RPC_URL }}
+          MUMBAI_RPC_URL: ${{ secrets.MUMBAI_RPC_URL }}
           GOERLI_RPC_URL: ${{ secrets.GOERLI_RPC_URL }}

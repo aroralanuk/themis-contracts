@@ -144,9 +144,6 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
         );
     }
 
-
-
-
     function _handle(
         uint32 _origin,
         bytes32 /* _sender */,

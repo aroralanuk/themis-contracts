@@ -1,291 +1,226 @@
-// // SPDX-License-Identifier: MIT
-// pragma solidity ^0.8.15;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.15;
 
-// import "forge-std/Test.sol";
-// import "forge-std/console.sol";
+import "forge-std/Test.sol";
+import "forge-std/console.sol";
 
-// import {XAddress} from "src/lib/XAddress.sol";
-// import {Bids} from "src/lib/Bids.sol";
+import {XAddress} from "src/lib/XAddress.sol";
+import {Bids} from "src/lib/Bids.sol";
 
-// import {ThemisAuction} from "src/ThemisAuction.sol";
-// import "src/IThemis.sol";
+import {IThemis} from "src/IThemis.sol";
+import {ThemisAuction} from "src/ThemisAuction.sol";
+import {ThemisRouter} from "src/ThemisRouter.sol";
 
-// import {BaseTest} from "test/utils/BaseTest.sol";
+
+import {BaseTest} from "test/utils/BaseTest.sol";
+import {BidsTest} from "test/Bids.t.sol";
 
 
-// contract ThemisAuctionTest is BaseTest {
-//     using Bids for Bids.Heap;
-//     using XAddress for XAddress.Info;
+contract ThemisAuctionTest is BaseTest {
+    using Bids for Bids.List;
+    using XAddress for XAddress.Info;
 
-//     XAddress.Info internal _bidder;
-//     ThemisAuction internal auction;
+    XAddress.Info internal _bidder;
+    ThemisAuction internal auction;
+    ThemisRouter internal router;
 
-//     uint256 constant MAX_SUPPLY = 3;
+    uint256 constant MAX_SUPPLY = 3;
 
-//     function setUp() public override {
-//         super.setUp();
+    function setUp() public override {
+        super.setUp();
+        auction = new ThemisAuction("Ethereal Encounters", "EE", MAX_SUPPLY);
 
-//         auction = new ThemisAuction("Ethereal Encounters", "EE", 3);
-//     }
+        router = new ThemisRouter();
+        auction.setRouter(address(router));
+    }
 
-//     function testInitialize() public {
-//         auction.initialize(
-//             uint64(1 hours),
-//             uint64(2 hours),
-//             uint128(0.1 ether)
-//         );
+    function testInitialize() public {
+        auction.initialize(
+            uint64(1 hours),
+            uint64(2 hours),
+            uint128(0.1 ether)
+        );
 
-//         assertEq(auction.endOfBiddingPeriod(), block.timestamp + 1 hours);
-//         assertEq(auction.endOfRevealPeriod(), block.timestamp + 3 hours);
-//         assertEq(auction.reservePrice(), 0.1 ether);
-//     }
+        assertEq(auction.endOfBiddingPeriod(), block.timestamp + 1 hours);
+        assertEq(auction.endOfRevealPeriod(), block.timestamp + 3 hours);
+        assertEq(auction.reservePrice(), 0.1 ether);
+    }
 
-//     function testCheckBid_Revert_BeforeReveal() public {
-//         bytes32 salt = genBytes32();
+    function testCheckBid_Revert_BeforeReveal() public {
+        bytes32 salt = genBytes32();
 
-//         auction.initialize(
-//             uint64(1 hours),
-//             uint64(2 hours),
-//             uint128(0.1 ether)
-//         );
+        auction.initialize(
+            uint64(1 hours),
+            uint64(2 hours),
+            uint128(0.1 ether)
+        );
 
-//         _bidder.init(1, alice);
-//         vm.expectRevert(IThemis.NotInRevealPeriod.selector);
-//         auction.checkBid(_bidder.toBytes32(), 0.2 ether, salt);
-//     }
+        _bidder.init(1, alice);
 
-//     function testCheckBid_Ascending() public {
-//         auction.initialize(
-//             uint64(1 hours),
-//             uint64(2 hours),
-//             uint128(50e6)
-//         );
+        auction.setInsertLimits(0, 0);
 
-//         vm.warp(block.timestamp + 1 hours);
-//         BidParams[] memory expected = new BidParams[](3);
-//         for (uint256 i = 0; i < 3; i++) {
-//             salt = genBytes32();
-//             // [alice, bob, charlie]
-//             expected[i] = BidParams({
-//                 domain: testDomains[i],
-//                 bidderAddress: testUsers[i],
-//                 bidAmount: testBids[i],
-//                 bidTimestamp: uint64(block.timestamp + i)
-//             });
-//             _bidder.init(testDomains[i], testUsers[i]);
-//             auction.checkBid(
-//                 _bidder.toBytes32(),
-//                 testBids[i],
-//                 salt
-//             );
-//         }
+        vm.expectRevert(IThemis.NotInRevealPeriod.selector);
+        auction.checkBid(_bidder.toBytes32(), 0.2 ether, salt);
+    }
 
-//         Bids.Node[] memory bids = auction.getHighestBids();
-//         assertAllBids(bids, expected);
-//     }
+    function testCheckBid_Ascending() public {
+        auction.initialize(
+            uint64(1 hours),
+            uint64(2 hours),
+            uint128(50e6)
+        );
 
-//     function testCheckBid_Descending() public {
-//         auction.initialize(
-//             uint64(1 hours),
-//             uint64(2 hours),
-//             uint128(50e6)
-//         );
+        vm.warp(block.timestamp + 1 hours);
+        BidParams[] memory expected = new BidParams[](3);
+        for (uint256 i = 0; i < 3; i++) {
+            salt = genBytes32();
+            // [alice, bob, charlie]
+            expected[i] = BidParams({
+                domain: testDomains[2-i],
+                bidderAddress: testUsers[2-i],
+                bidAmount: testBids[2-i],
+                bidTimestamp: uint64(block.timestamp + i)
+            });
+            _bidder.init(testDomains[i], testUsers[i]);
+            auction.setInsertLimits(testLesserKey[i], testGreaterKey[i]);
+            auction.checkBid(
+                _bidder.toBytes32(),
+                testBids[i],
+                salt
+            );
+        }
 
-//         vm.warp(block.timestamp + 1 hours);
-//         for (uint256 j = MAX_SUPPLY; j > 0; j--) {
-//             uint i = j - 1;
-//             salt = genBytes32();
+        Bids.Element[] memory bids = auction.getHighestBids();
+        assertAllBids(bids, expected);
+    }
 
-//             _bidder.init(testDomains[i], testUsers[i]);
-//             auction.checkBid(
-//                 _bidder.toBytes32(),
-//                 testBids[i],
-//                 salt
-//             );
-//         }
+    function testCheckBid_Descending() public {
+        auction.initialize(
+            uint64(1 hours),
+            uint64(2 hours),
+            uint128(50e6)
+        );
 
-//         Bids.Node[] memory bids = auction.getHighestBids();
-//         assertHeapProperty(bids);
-//     }
+        testLesserKey = [0, 0, 0];
+        testGreaterKey = [2, 1, 0];
 
-//     function testCheckBid_Random() public {
-//         auction.initialize(
-//             uint64(1 hours),
-//             uint64(2 hours),
-//             uint128(50e6)
-//         );
+        vm.warp(block.timestamp + 1 hours);
+        for (uint256 j = MAX_SUPPLY; j > 0; j--) {
+            uint i = j - 1;
+            salt = genBytes32();
 
-//         vm.warp(block.timestamp + 1 hours);
+            _bidder.init(testDomains[i], testUsers[i]);
+            auction.setInsertLimits(testLesserKey[i], testGreaterKey[i]);
+            auction.checkBid(
+                _bidder.toBytes32(),
+                testBids[i],
+                salt
+            );
+        }
+        assertBidsOrder(auction.getHighestBids());
+    }
 
-//         for (uint256 i = 0; i < 3; i++) {
-//             salt = genBytes32();
-//             // [alice, bob, charlie]
-//             uint r = i * 386_231 % 3;
-//             _bidder.init(testDomains[r], testUsers[r]);
-//             auction.checkBid(
-//                 _bidder.toBytes32(),
-//                 testBids[r],
-//                 salt
-//             );
-//         }
+    function testCheckBid_Full_LowBid() public {
+        auction.initialize(
+            uint64(1 hours),
+            uint64(2 hours),
+            uint128(50e6)
+        );
 
-//         Bids.Node[] memory bids = auction.getHighestBids();
-//         assertHeapProperty(bids);
-//     }
+        testLesserKey = [0,1,2,0];
+        testGreaterKey = [0,0,0,1];
 
-//     function testCheckBid_Full_LowBid() public {
-//         auction.initialize(
-//             uint64(1 hours),
-//             uint64(2 hours),
-//             uint128(50e6)
-//         );
+        vm.warp(block.timestamp + 1 hours);
 
-//         vm.warp(block.timestamp + 1 hours);
-//         BidParams[] memory expected = new BidParams[](MAX_SUPPLY);
-//         for (uint256 i = 0; i < 4; i++) {
-//             salt = genBytes32();
-//             // [alice, bob, charlie]
-//             if (i < 3) {
-//                 expected[i] = BidParams({
-//                     domain: testDomains[i],
-//                     bidderAddress: testUsers[i],
-//                     bidAmount: testBids[i],
-//                     bidTimestamp: uint64(block.timestamp + i)
-//                 });
-//             }
-//             _bidder.init(testDomains[i], testUsers[i]);
-//             auction.checkBid(
-//                 _bidder.toBytes32(),
-//                 testBids[i],
-//                 salt
-//             );
-//         }
+        for (uint256 i = 0; i < 4; i++) {
+            salt = genBytes32();
+            // [alice, bob, charlie]
 
-//         Bids.Node[] memory bids = auction.getHighestBids();
-//         assertAllBids(bids, expected);
-//     }
+            _bidder.init(testDomains[i], testUsers[i]);
 
-//     function testCheckBid_Full_HighestBid() public {
-//         testBids[3] = 250e6;
-//         expectedUsers = [bob, devin, charlie];
-//         expectedDomains = [1, 69, 3];
-//         expectedBids = [150e6, 250e6, 200e6];
+            auction.setInsertLimits(testLesserKey[i], testGreaterKey[i]);
+            auction.checkBid(
+                _bidder.toBytes32(),
+                testBids[i],
+                salt
+            );
+        }
+        assertBidsOrder(auction.getHighestBids());
+    }
 
-//         auction.initialize(
-//             uint64(1 hours),
-//             uint64(2 hours),
-//             uint128(50e6)
-//         );
+    function testEndAuction_NoBids() public {
+        auction.initialize(
+            uint64(1 hours),
+            uint64(2 hours),
+            uint128(50e6)
+        );
 
-//         vm.warp(block.timestamp + 1 hours);
-//         BidParams[] memory expected = new BidParams[](MAX_SUPPLY);
+        vm.warp(block.timestamp + 3 hours);
+        auction.endAuction();
 
-//         for (uint256 i = 0; i < 4; i++) {
-//             salt = genBytes32();
-//             // [bob, devin, charlie]
-//             if (i < 3) {
-//                 expected[i] = BidParams({
-//                     domain: expectedDomains[i],
-//                     bidderAddress: expectedUsers[i],
-//                     bidAmount: expectedBids[i],
-//                     bidTimestamp: uint64(block.timestamp + i)
-//                 });
-//             }
-//             _bidder.init(testDomains[i], testUsers[i]);
-//             auction.checkBid(
-//                 _bidder.toBytes32(),
-//                 testBids[i],
-//                 salt
-//             );
-//         }
+        assertEq(auction.getHighestBids().length, 0);
+    }
 
-//         Bids.Node[] memory bids = auction.getHighestBids();
-//         assertAllBids(bids, expected);
-//         assertHeapProperty(bids);
-//     }
+    function testEndAuction_OneBid() public {
+        auction.initialize(
+            uint64(1 hours),
+            uint64(2 hours),
+            uint128(50e6)
+        );
 
-//     function testCheckBid_Full_JustEnoughBid() public {
-//         testBids[3] = 110e6;
-//         expectedUsers = [devin, bob, charlie];
-//         expectedDomains = [69, 1, 3];
-//         expectedBids = [110e6, 150e6, 200e6];
+        vm.warp(block.timestamp + 1 hours);
+        salt = genBytes32();
+        _bidder.init(testDomains[0], testUsers[0]);
+        auction.setInsertLimits(testLesserKey[0], testGreaterKey[0]);
+        auction.checkBid(
+            _bidder.toBytes32(),
+            testBids[0],
+            salt
+        );
 
-//         auction.initialize(
-//             uint64(1 hours),
-//             uint64(2 hours),
-//             uint128(50e6)
-//         );
+        vm.warp(block.timestamp + 2 hours);
+        // TODO: router setup
+        // auction.endAuction();
 
-//         vm.warp(block.timestamp + 1 hours);
-//         BidParams[] memory expected = new BidParams[](MAX_SUPPLY);
+        assertEq(auction.getHighestBids().length, 1);
+    }
 
-//         for (uint256 i = 0; i < 4; i++) {
-//             salt = genBytes32();
-//             // [bob, devin, charlie]
-//             if (i < 3) {
-//                 expected[i] = BidParams({
-//                     domain: expectedDomains[i],
-//                     bidderAddress: expectedUsers[i],
-//                     bidAmount: expectedBids[i],
-//                     bidTimestamp: uint64(block.timestamp + i)
-//                 });
-//             }
-//             _bidder.init(testDomains[i], testUsers[i]);
-//             auction.checkBid(
-//                 _bidder.toBytes32(),
-//                 testBids[i],
-//                 salt
-//             );
-//         }
+    struct BidParams {
+        uint32 domain;
+        address bidderAddress;
+        uint128 bidAmount;
+        uint64 bidTimestamp;
+    }
 
-//         Bids.Node[] memory bids = auction.getHighestBids();
-//         assertAllBids(bids, expected);
-//     }
+    function assertBid(
+        Bids.Element memory bid,
+        BidParams memory expected
+    ) internal {
+        assertEq(bid.domain, expected.domain);
+        assertEq(bid.bidderAddress, expected.bidderAddress);
+        assertEq(bid.bidAmount, expected.bidAmount);
+    }
 
-//     struct BidParams {
-//         uint32 domain;
-//         address bidderAddress;
-//         uint128 bidAmount;
-//         uint64 bidTimestamp;
-//     }
+    function assertAllBids(
+        Bids.Element[] memory bids,
+        BidParams[] memory expected
+    ) internal {
+        assertEq(bids.length, expected.length);
+        for (uint256 i = 0; i < bids.length; i++) {
+            assertBid(bids[i], expected[i]);
+        }
+    }
 
-//     function assertBid(
-//         Bids.Node memory bid,
-//         BidParams memory expected
-//     ) internal {
-//         assertEq(bid.domain, expected.domain);
-//         assertEq(bid.bidderAddress, expected.bidderAddress);
-//         assertEq(bid.bidAmount, expected.bidAmount);
-//         // TODO: timestamp yourt bids
-//         // assertEq(bid.bidTimestamp, expected.bidTimestamp);
-//     }
-
-//     function assertAllBids(
-//         Bids.Node[] memory bids,
-//         BidParams[] memory expected
-//     ) internal {
-//         assertEq(bids.length, expected.length);
-//         for (uint256 i = 0; i < bids.length; i++) {
-//             assertBid(bids[i], expected[i]);
-//         }
-//     }
-
-//     function assertHeapProperty(Bids.Node[] memory bids) internal pure {
-//         require(bids.length == MAX_SUPPLY);
-//         for (uint256 i = 0; i < bids.length; i++) {
-//             uint256 left = 2 * i + 1;
-//             uint256 right = 2 * i + 2;
-//             if (left < bids.length) {
-//                 require(
-//                     bids[i].bidAmount <= bids[left].bidAmount, "HEAP_PROPERTY_VIOLATED"
-//                 );
-//             }
-//             if (right < bids.length) {
-//                 require(
-//                     bids[i].bidAmount <= bids[right].bidAmount, "HEAP_PROPERTY_VIOLATED"
-//                 );
-//             }
-//         }
-//     }
-
-// }
+    function assertBidsOrder(Bids.Element[] memory bidsArray)
+        internal pure returns (bool)
+    {
+        for (uint i = 0; i < bidsArray.length - 1; i++) {
+            Bids.Element memory element = bidsArray[i];
+            Bids.Element memory nextElement = bidsArray[i + 1];
+            if (!Bids.lt(element, nextElement)) {
+                return false;
+            }
+        }
+        return true;
+    }
+}

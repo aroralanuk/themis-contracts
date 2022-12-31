@@ -15,13 +15,13 @@ abstract contract BaseTest is Test {
     address constant charlie = address(uint160(uint256(keccak256("charlie"))));
     address constant devin = address(uint160(uint256(keccak256("devin"))));
 
-    // not needed
-    // uint256 pk = vm.envUint("DEPLOYER_PRIVATE_KEY");
-    // uint256 alice_pk = vm.envUint("ALICE_PRIVATE_KEY");
-    // uint256 bob_pk = vm.envUint("BOB_PRIVATE_KEY");
     address[] testUsers = [alice, bob, charlie, devin];
     uint32[] testDomains = [0, 1, 3, 69];
     uint128[] testBids = [100e6, 150e6, 200e6, 90e6];
+
+    uint32[] testLesserKey = [0, 1, 2];
+    uint32[] testGreaterKey = [0, 0, 0];
+
     bytes32 salt;
 
     // placeholder for now

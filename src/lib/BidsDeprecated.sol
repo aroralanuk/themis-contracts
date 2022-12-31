@@ -143,4 +143,22 @@ library BidsDeprecated {
         (self.array[i], self.array[j])
             = (self.array[j], self.array[i]);
     }
+
+    function assertHeapProperty(Node[] memory bids) internal pure {
+        require(bids.length == 3);
+        for (uint256 i = 0; i < bids.length; i++) {
+            uint256 left = 2 * i + 1;
+            uint256 right = 2 * i + 2;
+            if (left < bids.length) {
+                require(
+                    bids[i].bidAmount <= bids[left].bidAmount, "HEAP_PROPERTY_VIOLATED"
+                );
+            }
+            if (right < bids.length) {
+                require(
+                    bids[i].bidAmount <= bids[right].bidAmount, "HEAP_PROPERTY_VIOLATED"
+                );
+            }
+        }
+    }
 }

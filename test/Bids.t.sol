@@ -445,9 +445,8 @@ contract BidsTest is BaseTest {
         assertBidsOrder(bids.getAllBids());
     }
 
-
     function assertBidsOrder(Bids.Element[] memory bidsArray)
-        internal returns (bool)
+        internal pure returns (bool)
     {
         for (uint i = 0; i < bidsArray.length - 1; i++) {
             Bids.Element memory element = bidsArray[i];

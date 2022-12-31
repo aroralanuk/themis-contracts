@@ -325,6 +325,7 @@ contract ThemisControllerTest is BaseTest {
         controller.startReveal();
 
         controller.setBalance(88e6);
+        auction.setInsertLimits(0, 0);
         address vault = controller.revealBid(alice, salt, nullProof());
         testEnv.processNextPendingMessage();
         controller.revealBidCallback(alice, 100e6, salt, true);
@@ -376,6 +377,7 @@ contract ThemisControllerTest is BaseTest {
         controller.startReveal();
 
         controller.setBalance(88e6);
+        auction.setInsertLimits(0, 0);
         address vault = controller.revealBid(alice, salt, nullProof());
         testEnv.processNextPendingMessage();
         // controller.revealBidCallback(alice, 100e6, salt, true);
@@ -407,6 +409,7 @@ contract ThemisControllerTest is BaseTest {
         controller.startReveal();
 
         controller.setBalance(88e6);
+        auction.setInsertLimits(0, 0);
         address vault = controller.revealBid(alice, salt, nullProof());
         testEnv.processNextPendingMessage();
         controller.revealBidCallback(alice, 100e6, salt, true);
