@@ -4,6 +4,15 @@ pragma solidity ^0.8.15;
 import "forge-std/console.sol";
 
 library Bids2 {
+    error EmptyList();
+    error InvalidCapacity();
+    error InvalidElement();
+    error InvalidGreaterKey();
+    error InvalidLesserKey();
+    error InvalidNextKey();
+    error InvalidPreviousKey();
+    error NotEmptyList();
+
     struct Element {
         uint32 domain;
         address bidderAddress;
@@ -22,56 +31,59 @@ library Bids2 {
         uint32 capacity;
     }
 
-    function init(List storage self, uint32 capacity) external {
-        require(capacity > 0, "Bids: Invalid capacity");
-        self.capacity = capacity;
+    function init(List storage self, uint32 capacity_) external {
+        if (capacity_ == 0) revert InvalidCapacity();
+        self.capacity = capacity_;
     }
 
     function insert(
         List storage self,
-        Element memory element,
-        uint32 lesserKey,
-        uint32 greaterKey
+        Element memory element
     ) external returns (Element memory) {
+        uint32 lesserKey = element.prevKey;
+        uint32 greaterKey = element.nextKey;
+
         if (lesserKey == 0 && greaterKey == 0) {
-            require(self.totalBids == 0, "Bids: Invalid keys");
+            if (self.totalBids > 0) revert NotEmptyList();
             uint32 key = self.totalBids + 1;
             self.elements[key] = element;
+
+            element.prevKey = 0;
+            element.nextKey = 0;
 
             self.head = key;
             self.tail = key;
         } else if (lesserKey == 0){
             Element memory greaterElement = self.elements[greaterKey];
-            require(lt(element, greaterElement), "Bids: Invalid greater key");
-
-            require(greaterElement.prevKey == 0, "Bids: Invalid prev key");
+            if (!lt(element, greaterElement)) revert InvalidGreaterKey();
+            if (greaterElement.prevKey != 0) revert InvalidPreviousKey();
 
             uint32 key = self.totalBids + 1;
             element.nextKey = greaterKey;
+            element.prevKey = 0;
             self.elements[key] = element;
 
             self.elements[greaterKey].prevKey = key;
             self.head = key;
         } else if (greaterKey == 0){
             Element memory lesserElement = self.elements[lesserKey];
-            require(lt(lesserElement, element), "Bids: Invalid lesser key");
-
-            require(lesserElement.nextKey == 0, "Bids: Invalid next key");
+            if (!lt(lesserElement, element)) revert InvalidLesserKey();
+            if (lesserElement.nextKey != 0) revert InvalidNextKey();
 
             uint32 key = self.totalBids + 1;
             element.prevKey = lesserKey;
+            element.nextKey = 0;
             self.elements[key] = element;
 
             self.elements[lesserKey].nextKey = key;
             self.tail = key;
         } else {
             Element memory lesserElement = self.elements[lesserKey];
-            require(lt(lesserElement, element), "Bids: Invalid lesser key");
-
             Element memory greaterElement = self.elements[greaterKey];
-            require(lt(element, greaterElement), "Bids: Invalid greater key");
 
-            require(lesserElement.nextKey == greaterKey, "Bids: Invalid next key");
+            if (!lt(lesserElement, element)) revert InvalidLesserKey();
+            if (!lt(element, greaterElement)) revert InvalidGreaterKey();
+            if (lesserElement.nextKey != greaterKey) revert InvalidNextKey();
 
             uint32 key = self.totalBids + 1;
             element.prevKey = lesserKey;
@@ -89,11 +101,11 @@ library Bids2 {
     }
 
     function pop(List storage self) internal returns (Element memory) {
-        require(self.totalBids > 0, "Bids: Empty list");
+        if (self.totalBids == 0) revert EmptyList();
 
         uint32 key = self.head;
         Element memory element = self.elements[key];
-        require(element.bidderAddress != address(0), "Bids: Invalid element");
+        if (element.bidderAddress == address(0)) revert InvalidElement();
 
         if (self.totalBids == 1) {
             self.head = 0;
