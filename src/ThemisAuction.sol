@@ -14,7 +14,7 @@ import {ThemisRouter} from "src/ThemisRouter.sol";
 
 contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
     using XAddress for XAddress.Info;
-    using Bids for Bids.Heap;
+    using Bids for Bids.List;
 
     string public BASE_ASSET_URI;
 
@@ -22,12 +22,16 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
 
     uint256 public immutable MAX_SUPPLY;
 
-    Bids.Heap public highestBids;
+    Bids.List public highestBids;
     XAddress.Info internal _bidder;
 
     uint64 public endOfBiddingPeriod;
     uint64 public endOfRevealPeriod;
     uint128 public reservePrice;
+
+    uint32 internal _lesserKey;
+    uint32 internal _greaterKey;
+    bool internal _mutex;
 
     mapping (uint32 => address) public controllers;
     mapping(uint256 => address) public reserved;
@@ -107,7 +111,7 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
             uint64(block.timestamp) + bidPeriod_ + revealPeriod_;
         reservePrice = reservePrice_;
 
-        highestBids.initialize(uint32(MAX_SUPPLY));
+        highestBids.init(uint32(MAX_SUPPLY + 1));
 
         emit AuctionInitialized(
             address(this),
@@ -127,22 +131,28 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
         if (bidAmount < reservePrice) revert BidLowerThanReserve();
 
         // insert in order of bids
-        uint32 currentPosition = highestBids.insert(
-            _bidder.getDomain(),
-            _bidder.getAddress(),
-            bidAmount,
-            uint64(block.timestamp) // fixme: use actual time
+        if (!_mutex) revert InsertLimitsNotSet();
+        uint32 index = highestBids.insert(
+            Bids.Element({
+                domain: _bidder.getDomain(),
+                bidderAddress: _bidder.getAddress(),
+                bidAmount: bidAmount,
+                bidTimestamp: uint64(block.timestamp),
+                prevKey: _lesserKey,
+                nextKey: _greaterKey
+            })
         );
+        _mutex = false;
 
         emit BidRevealed(
-            currentPosition,
+            index,
             _bidder.getDomain(),
             _bidder.getAddress(),
             bidAmount,
             uint64(block.timestamp)
         );
 
-        return (currentPosition == 0, bidder, bidAmount, salt);
+        return (index == 0, bidder, bidAmount, salt);
     }
 
     // TODO: later
@@ -151,29 +161,28 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
     function endAuction() external {
         if (block.timestamp < endOfRevealPeriod) revert AuctionNotOver();
 
-        Bids.Node memory bid;
-        for (uint i = 0; i < highestBids.totalBids; i++) {
-            bid = highestBids.index[highestBids.array[i]];
-
+        Bids.Element[] memory bids = highestBids.getAllBids();
+        if (bids.length == 0) revert NoBids();
+        for (uint i = 0; i < bids.length - 1; i++) {
             // accountRouter call -> check for liquidity
-            uint32 destDomain = bid.domain;
+            uint32 destDomain = bids[i].domain;
             router.dispatchWithCallback(
                 destDomain,
                 getController(destDomain),
                 abi.encodeCall(
                     ThemisController.deployVaultOnReveal,
-                    (bid.bidderAddress, bid.bidAmount , bytes32(i)) // TODO: fix this
+                    (bids[i].bidderAddress, bids[i+1].bidAmount , bytes32(i)) // TODO: fix this
                 ),
                 abi.encodePacked(this.checkLiquidityReceipt.selector)
             );
 
-            _reserve(bid.bidderAddress, i);
+            _reserve(bids[i].bidderAddress, i);
 
             emit BidShortlisted(
                 uint32(i),
-                bid.domain,
-                bid.bidderAddress,
-                bid.bidAmount
+                bids[i].domain,
+                bids[i].bidderAddress,
+                bids[i].bidAmount
             );
         }
 
@@ -182,6 +191,13 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
 
     function _reserve(address bidder_, uint256 id_) internal {
         reserved[id_] = bidder_;
+    }
+
+    function setInsertLimits(uint32 lesserkey_, uint32 greaterKey_) external {
+        if (_mutex) revert InsertLimitsInUse();
+        _mutex = true;
+        _lesserKey = lesserkey_;
+        _greaterKey = greaterKey_;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -199,7 +215,7 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
         super._mint(to, id);
     }
 
-    function getHighestBids() external view returns (Bids.Node[] memory) {
+    function getHighestBids() external view returns (Bids.Element[] memory) {
         return highestBids.getAllBids();
     }
 

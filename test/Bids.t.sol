@@ -4,14 +4,14 @@ pragma solidity ^0.8.15;
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
 
-import "src/lib/Bids2.sol";
+import "src/lib/Bids.sol";
 
 import "test/utils/BaseTest.sol";
 
 contract BidsTest is BaseTest {
-    using Bids2 for Bids2.List;
+    using Bids for Bids.List;
 
-    Bids2.List internal bids;
+    Bids.List internal bids;
     uint32 constant MAX_SUPPLY = 2;
 
     function setUp() public override {
@@ -23,7 +23,7 @@ contract BidsTest is BaseTest {
 
     function testInsert_FirstElement() public {
         bids.insert(
-            Bids2.Element({
+            Bids.Element({
                 domain: 1,
                 bidderAddress: alice,
                 bidAmount: 100e6,
@@ -39,7 +39,7 @@ contract BidsTest is BaseTest {
 
     function testInsert_123() public {
         bids.insert(
-            Bids2.Element({
+            Bids.Element({
                 domain: 1,
                 bidderAddress: alice,
                 bidAmount: 100e6,
@@ -50,7 +50,7 @@ contract BidsTest is BaseTest {
         );
 
         bids.insert(
-            Bids2.Element({
+            Bids.Element({
                 domain: 2,
                 bidderAddress: bob,
                 bidAmount: 200e6,
@@ -61,7 +61,7 @@ contract BidsTest is BaseTest {
         );
 
         bids.insert(
-            Bids2.Element({
+            Bids.Element({
                 domain: 3,
                 bidderAddress: charlie,
                 bidAmount: 250e6,
@@ -77,7 +77,7 @@ contract BidsTest is BaseTest {
 
     function testInsert_12_fail() public {
         bids.insert(
-            Bids2.Element({
+            Bids.Element({
                 domain: 1,
                 bidderAddress: alice,
                 bidAmount: 100e6,
@@ -87,9 +87,9 @@ contract BidsTest is BaseTest {
             })
         );
 
-        vm.expectRevert(Bids2.InvalidLesserKey.selector);
+        vm.expectRevert(Bids.InvalidLesserKey.selector);
         bids.insert(
-            Bids2.Element({
+            Bids.Element({
                 domain: 2,
                 bidderAddress: bob,
                 bidAmount: 50e6,
@@ -105,7 +105,7 @@ contract BidsTest is BaseTest {
 
     function testInsert_132_fail() public {
         bids.insert(
-            Bids2.Element({
+            Bids.Element({
                 domain: 1,
                 bidderAddress: alice,
                 bidAmount: 100e6,
@@ -116,7 +116,7 @@ contract BidsTest is BaseTest {
         );
 
         bids.insert(
-            Bids2.Element({
+            Bids.Element({
                 domain: 2,
                 bidderAddress: bob,
                 bidAmount: 200e6,
@@ -126,9 +126,9 @@ contract BidsTest is BaseTest {
             })
         );
 
-        vm.expectRevert(Bids2.InvalidLesserKey.selector);
+        vm.expectRevert(Bids.InvalidLesserKey.selector);
         bids.insert(
-            Bids2.Element({
+            Bids.Element({
                 domain: 3,
                 bidderAddress: charlie,
                 bidAmount: 150e6,
@@ -144,7 +144,7 @@ contract BidsTest is BaseTest {
 
     function testInsert_123_fail() public {
         bids.insert(
-            Bids2.Element({
+            Bids.Element({
                 domain: 1,
                 bidderAddress: alice,
                 bidAmount: 100e6,
@@ -155,7 +155,7 @@ contract BidsTest is BaseTest {
         );
 
         bids.insert(
-            Bids2.Element({
+            Bids.Element({
                 domain: 2,
                 bidderAddress: bob,
                 bidAmount: 200e6,
@@ -165,9 +165,9 @@ contract BidsTest is BaseTest {
             })
         );
 
-        vm.expectRevert(Bids2.InvalidGreaterKey.selector);
+        vm.expectRevert(Bids.InvalidGreaterKey.selector);
         bids.insert(
-            Bids2.Element({
+            Bids.Element({
                 domain: 3,
                 bidderAddress: charlie,
                 bidAmount: 250e6,
@@ -184,7 +184,7 @@ contract BidsTest is BaseTest {
 
     function testInsert_132() public {
         bids.insert(
-            Bids2.Element({
+            Bids.Element({
                 domain: 1,
                 bidderAddress: alice,
                 bidAmount: 100e6,
@@ -195,7 +195,7 @@ contract BidsTest is BaseTest {
         );
 
         bids.insert(
-            Bids2.Element({
+            Bids.Element({
                 domain: 2,
                 bidderAddress: bob,
                 bidAmount: 200e6,
@@ -206,7 +206,7 @@ contract BidsTest is BaseTest {
         );
 
         bids.insert(
-            Bids2.Element({
+            Bids.Element({
                 domain: 3,
                 bidderAddress: charlie,
                 bidAmount: 150e6,
@@ -222,7 +222,7 @@ contract BidsTest is BaseTest {
 
     function testInsert_312() public {
         bids.insert(
-            Bids2.Element({
+            Bids.Element({
                 domain: 1,
                 bidderAddress: alice,
                 bidAmount: 100e6,
@@ -233,7 +233,7 @@ contract BidsTest is BaseTest {
         );
 
         bids.insert(
-            Bids2.Element({
+            Bids.Element({
                 domain: 2,
                 bidderAddress: bob,
                 bidAmount: 200e6,
@@ -244,7 +244,7 @@ contract BidsTest is BaseTest {
         );
 
         bids.insert(
-            Bids2.Element({
+            Bids.Element({
                 domain: 3,
                 bidderAddress: charlie,
                 bidAmount: 50e6,
@@ -260,7 +260,7 @@ contract BidsTest is BaseTest {
 
     function testInsert_132_timestamp() public {
         bids.insert(
-            Bids2.Element({
+            Bids.Element({
                 domain: 1,
                 bidderAddress: alice,
                 bidAmount: 100e6,
@@ -271,7 +271,7 @@ contract BidsTest is BaseTest {
         );
 
         bids.insert(
-            Bids2.Element({
+            Bids.Element({
                 domain: 2,
                 bidderAddress: bob,
                 bidAmount: 200e6,
@@ -284,7 +284,7 @@ contract BidsTest is BaseTest {
         vm.warp(block.timestamp + 5);
 
         bids.insert(
-            Bids2.Element({
+            Bids.Element({
                 domain: 3,
                 bidderAddress: charlie,
                 bidAmount: 200e6,
@@ -300,7 +300,7 @@ contract BidsTest is BaseTest {
 
     function testInsert_132_overflow() public {
         bids.insert(
-            Bids2.Element({
+            Bids.Element({
                 domain: 1,
                 bidderAddress: alice,
                 bidAmount: 100e6,
@@ -311,7 +311,7 @@ contract BidsTest is BaseTest {
         );
 
         bids.insert(
-            Bids2.Element({
+            Bids.Element({
                 domain: 2,
                 bidderAddress: bob,
                 bidAmount: 200e6,
@@ -322,7 +322,7 @@ contract BidsTest is BaseTest {
         );
 
         bids.insert(
-            Bids2.Element({
+            Bids.Element({
                 domain: 3,
                 bidderAddress: charlie,
                 bidAmount: 150e6,
@@ -333,7 +333,7 @@ contract BidsTest is BaseTest {
         );
 
         bids.insert(
-            Bids2.Element({
+            Bids.Element({
                 domain: 4,
                 bidderAddress: devin,
                 bidAmount: 90e6,
@@ -349,7 +349,7 @@ contract BidsTest is BaseTest {
 
     function testInsert_432_overflow() public {
         bids.insert(
-            Bids2.Element({
+            Bids.Element({
                 domain: 1,
                 bidderAddress: alice,
                 bidAmount: 100e6,
@@ -360,7 +360,7 @@ contract BidsTest is BaseTest {
         );
 
         bids.insert(
-            Bids2.Element({
+            Bids.Element({
                 domain: 2,
                 bidderAddress: bob,
                 bidAmount: 200e6,
@@ -371,7 +371,7 @@ contract BidsTest is BaseTest {
         );
 
         bids.insert(
-            Bids2.Element({
+            Bids.Element({
                 domain: 3,
                 bidderAddress: charlie,
                 bidAmount: 150e6,
@@ -382,7 +382,7 @@ contract BidsTest is BaseTest {
         );
 
         bids.insert(
-            Bids2.Element({
+            Bids.Element({
                 domain: 4,
                 bidderAddress: devin,
                 bidAmount: 110e6,
@@ -398,7 +398,7 @@ contract BidsTest is BaseTest {
 
     function testInsert_324_overflow() public {
         bids.insert(
-            Bids2.Element({
+            Bids.Element({
                 domain: 1,
                 bidderAddress: alice,
                 bidAmount: 100e6,
@@ -409,7 +409,7 @@ contract BidsTest is BaseTest {
         );
 
         bids.insert(
-            Bids2.Element({
+            Bids.Element({
                 domain: 2,
                 bidderAddress: bob,
                 bidAmount: 200e6,
@@ -420,7 +420,7 @@ contract BidsTest is BaseTest {
         );
 
         bids.insert(
-            Bids2.Element({
+            Bids.Element({
                 domain: 3,
                 bidderAddress: charlie,
                 bidAmount: 150e6,
@@ -431,7 +431,7 @@ contract BidsTest is BaseTest {
         );
 
         bids.insert(
-            Bids2.Element({
+            Bids.Element({
                 domain: 4,
                 bidderAddress: devin,
                 bidAmount: 250e6,
@@ -446,13 +446,13 @@ contract BidsTest is BaseTest {
     }
 
 
-    function assertBidsOrder(Bids2.Element[] memory bidsArray)
+    function assertBidsOrder(Bids.Element[] memory bidsArray)
         internal returns (bool)
     {
         for (uint i = 0; i < bidsArray.length - 1; i++) {
-            Bids2.Element memory element = bidsArray[i];
-            Bids2.Element memory nextElement = bidsArray[i + 1];
-            if (!Bids2.lt(element, nextElement)) {
+            Bids.Element memory element = bidsArray[i];
+            Bids.Element memory nextElement = bidsArray[i + 1];
+            if (!Bids.lt(element, nextElement)) {
                 return false;
             }
         }

@@ -11,8 +11,11 @@ interface IThemis {
     error BidAlreadyRevealed();
     error BidLowerThanReserve();
     error BidNotRevealed();
+    error InsertLimitsNotSet();
+    error InsertLimitsInUse();
     error InvalidTokenId();
     error RevealAlreadyStarted();
+    error NoBids();
     error NotCollectionOwner();
     error NotInRevealPeriod();
     error NotReserved();
