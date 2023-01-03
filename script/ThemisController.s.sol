@@ -11,7 +11,7 @@ contract ControllerScript is Script {
 
     address MUMBAI_MAILBOX = 0x1d3aAC239538e6F1831C8708803e61A9EA299Eec;
     uint32 MUMBAI_DOMAIN = 80001;
-    address AUCTION = 0x4aecEB6486D25D5015bF8F8323914A36204ed4b7;
+    address AUCTION;
     // read auction contract from file
 
     ThemisController controller;
@@ -28,13 +28,14 @@ contract ControllerScript is Script {
     function run() public {
         setUp();
 
-        vm.broadcast(pk);
-        controller = new ThemisController(AUCTION);
+        vm.startBroadcast(pk);
         router = new ThemisRouter();
         router.initialize(
             MUMBAI_MAILBOX,
             MUMBAI_DOMAIN
         );
+        controller = new ThemisController(address(router));
+        // controller.connectAuction(domain_, contract_);
         vm.stopBroadcast();
     }
 }

@@ -17,7 +17,7 @@ contract AuctionScript is Script {
     function setUp() public {}
 
     function run() public {
-        vm.broadcast(pk);
+        vm.startBroadcast(pk);
 
         auction = new ThemisAuction("Ethereal Encounters", "EE", 100);
         router = new ThemisRouter();

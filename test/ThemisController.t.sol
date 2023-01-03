@@ -441,12 +441,7 @@ contract ThemisControllerTest is BaseTest {
     {
 
         _auction.init(remoteDomain, address(auction));
-        vault = controller.getVaultAddress(
-            _auction.toBytes32(),
-            address(usdc),
-            from,
-            salt
-        );
+        vault = controller.getVaultAddress(from, salt);
         usdc.transfer(vault, bidValue);
     }
 

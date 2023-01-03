@@ -24,7 +24,7 @@ contract ThemisController is IThemis {
     mapping(address => bool) revealedVault;
 
     address owner;
-    address collateralToken;
+    address public collateralToken;
 
     uint96 public revealStartBlock;
     bytes32 public storedBlockHash;
@@ -91,12 +91,7 @@ contract ThemisController is IThemis {
         bytes32 salt_,
         CollateralizationProof calldata proof_
     ) external returns (address vault){
-        vault = getVaultAddress(
-            _auction.toBytes32(),
-            collateralToken,
-            bidder_,
-            salt_
-        );
+        vault = getVaultAddress(bidder_, salt_);
 
         uint128 vaultBalance = uint128(
             _getProvenAccountBalance(
@@ -137,12 +132,8 @@ contract ThemisController is IThemis {
         bytes32 salt_,
         bool success_
     ) public {
-        address vault = getVaultAddress(
-            _auction.toBytes32(),
-            collateralToken,
-            bidder_,
-            salt_
-        );
+        address vault = getVaultAddress(bidder_, salt_);
+
         if (revealedVault[vault]) revert BidAlreadyRevealed();
         revealedVault[vault] = true;
 
@@ -177,12 +168,7 @@ contract ThemisController is IThemis {
         // TODO: restrict to router
 
         bidAmounts[bidder_] = bidAmount_;
-        address vault = getVaultAddress(
-            _auction.toBytes32(),
-            collateralToken,
-            bidder_,
-            salt_
-        );
+        address vault = getVaultAddress(bidder_, salt_);
 
         if (!revealedVault[vault]) revert BidNotRevealed();
         if (vault.code.length != 0) revert VaultAlreadyDeployed();
@@ -213,6 +199,18 @@ contract ThemisController is IThemis {
         );
     }
 
+    function getVaultAddress(address bidder_, bytes32 salt_)
+        public view returns (address vault)
+    {
+        return _getVaultAddress(
+            _auction.toBytes32(),
+            collateralToken,
+            bidder_,
+            salt_
+        );
+    }
+
+
 
     /// @notice computes the `CREATE2` address of the `ThemisVault` with the
     /// given paramters. The vault may not be deployed yet.
@@ -221,12 +219,12 @@ contract ThemisController is IThemis {
     /// @param bidder_ The bidder who deposited the collateral to this vault
     /// @param salt_ The salt used to create the vault
     /// @return vault The address of the vault
-    function getVaultAddress(
+    function _getVaultAddress(
         bytes32 auction_,
         address collateralToken_,
         address bidder_,
         bytes32 salt_
-    ) public view returns (address vault) {
+    ) internal view returns (address vault) {
         // Compute `CREATE2` address of vault
         return address(uint160(uint256(keccak256(abi.encodePacked(
             bytes1(0xff),

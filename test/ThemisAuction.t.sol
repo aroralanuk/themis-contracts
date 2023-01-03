@@ -185,6 +185,16 @@ contract ThemisAuctionTest is BaseTest {
         assertEq(auction.getHighestBids().length, 1);
     }
 
+    function testAddress() public {
+        address alice = 0x9B342ea9775950b39b522a35C91970b46f5A9184;
+        uint32 domain = 5;
+
+        _bidder.init(domain, alice);
+        console.log(_bidder.getAddress());
+        console.log(_bidder.getDomain());
+
+    }
+
     struct BidParams {
         uint32 domain;
         address bidderAddress;

@@ -144,6 +144,10 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
         );
         _mutex = false;
 
+        console.logBytes32(bidder);
+        console.log("Bidder: %s", _bidder.getAddress());
+        console.log("Bidder domain: %s", _bidder.getDomain());
+
         emit BidRevealed(
             index,
             _bidder.getDomain(),
