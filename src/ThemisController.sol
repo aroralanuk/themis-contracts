@@ -93,14 +93,17 @@ contract ThemisController is IThemis {
     ) external returns (address vault){
         vault = getVaultAddress(bidder_, salt_);
 
-        uint128 vaultBalance = uint128(
-            _getProvenAccountBalance(
-                proof_.accountMerkleProof,
-                proof_.blockHeaderRLP,
-                storedBlockHash,
-                vault
-            )
-        );
+        // JUST FOR TESTING
+        uint128 vaultBalance = uint128(ERC20(collateralToken).balanceOf(vault));
+
+        // uint128 vaultBalance = uint128(
+        //     _getProvenAccountBalance(
+        //         proof_.accountMerkleProof,
+        //         proof_.blockHeaderRLP,
+        //         storedBlockHash,
+        //         vault
+        //     )
+        // );
 
         _bidder.init(_router.getDomain(), bidder_);
 

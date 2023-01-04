@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.15;
 
+import "forge-std/console.sol";
+
 
 // @author: A16Z
 
@@ -65,7 +67,7 @@ library LibBalanceProof {
         address account
     )
         internal
-        pure
+        view
         returns (uint256 accountBalance)
     {
         bytes32 proofPath = keccak256(abi.encodePacked(account));
@@ -87,7 +89,7 @@ library LibBalanceProof {
     /// @return root The state root extracted from the block header.
     function getStateRoot(bytes memory blockHeaderRLP, bytes32 blockHash)
         internal
-        pure
+        view
         returns (bytes32 root)
     {
         // prevent from reading invalid memory
@@ -116,7 +118,7 @@ library LibBalanceProof {
         bytes32 path
     )
         internal
-        pure
+        view
         returns (uint256 accountBalance)
     {
         bytes32 expectedHash = stateRoot; // Required hash for the next node
@@ -189,7 +191,7 @@ library LibBalanceProof {
         uint256 pathBitIndex
     )
         private
-        pure
+        view
         returns (bool isBranchNode, bytes32 childHash)
     {
         if (nodeRLP.length == 0) {
@@ -273,7 +275,7 @@ library LibBalanceProof {
         uint256 pathBitIndex
     )
         private
-        pure
+        view
         returns (uint256 accountBalance)
     {
         (
@@ -312,7 +314,7 @@ library LibBalanceProof {
     /// @return accountStateLen Length in bytes of the account state.
     function _decodeLeafNode(bytes memory nodeRLP)
         private
-        pure
+        view
         returns (
             uint256 encodedPathPtr,
             uint256 encodedPathLen,
@@ -390,7 +392,7 @@ library LibBalanceProof {
         uint256 accountStateLen
     )
         private
-        pure
+        view
         returns (uint256 accountBalance)
     {
         if (accountStateLen == 0) {
@@ -398,6 +400,7 @@ library LibBalanceProof {
         }
 
         uint256 byte0;
+        bytes32 byte1;
         assembly { byte0 := byte(0, mload(accountStatePtr)) }
         uint256 payloadOffset;
         if (byte0 >= LIST_LONG_START) {
@@ -437,6 +440,9 @@ library LibBalanceProof {
 
         // Skip over storage root
         assembly { byte0 := byte(0, mload(currPtr)) }
+        assembly { byte1 := byte(0, mload(currPtr)) }
+        console.log("Storage slot");
+        console.logBytes32(byte1);
         if (byte0 != 0xa0) { // 32 bytes long
             revert UnexpectedByte0("storage root", bytes1(uint8(byte0)));
         }
@@ -458,6 +464,65 @@ library LibBalanceProof {
         }
     }
 
+    /// @dev Decodes the account balance from the RLP-encoded account state.
+    ///      Reverts if the account state is improperly encoded.
+    /// @param accountStatePtr Memory pointer to the RLP-encoded account state.
+    /// @param accountStateLen Length in bytes of the account state.
+    /// @return storage0 The proven past balance of the account.
+    function _decodeStorage(
+        uint256 accountStatePtr,
+        uint256 accountStateLen
+    )
+        private
+        view
+        returns (bytes32 storage0)
+    {
+        if (accountStateLen == 0) {
+            revert EmptyAccountState();
+        }
+
+        uint256 byte0;
+        assembly { byte0 := byte(0, mload(accountStatePtr)) }
+        uint256 payloadOffset;
+        if (byte0 >= LIST_LONG_START) {
+            unchecked { payloadOffset = byte0 - 0xf6; }
+        } else {
+            // Account balance must be a long list because it encodes
+            // storage root and code hash, which are 32 bytes each
+            revert UnexpectedByte0("account balance", bytes1(uint8(byte0)));
+        }
+
+        uint256 currPtr = accountStatePtr + payloadOffset;
+
+        // Skip over nonce and accountBalance
+        currPtr += 2 * _rlpItemLength(currPtr);
+
+        // Skip over storage root
+        assembly { storage0 := byte(0, mload(currPtr)) }
+        console.log("Storage slot", byte0);
+        if (byte0 != 0xa0) { // 32 bytes long
+            revert UnexpectedByte0("storage root", bytes1(uint8(byte0)));
+        }
+        currPtr += 33;
+
+        // Skip over code hash
+        assembly { byte0 := byte(0, mload(currPtr)) }
+        if (byte0 != 0xa0) { // 32 bytes long
+            revert UnexpectedByte0("code hash", bytes1(uint8(byte0)));
+        }
+        currPtr += 33;
+
+        // currPtr > acountStatePtr, so this cannot underflow.
+        unchecked {
+            // Account state array should have 4 elements
+            if ((currPtr - accountStatePtr) != accountStateLen) {
+                revert UnexpectedArrayLength("account state");
+            }
+        }
+    }
+
+    // Storage hash => storage slot => ERC20 balance
+
     /// @dev Proccesses an RLP-encoded Merkle Patricia Trie node as an extension
     ///      node. Reverts if it is not a properly encoded extension node.
     /// @param nodeRLP The RLP-encoded trie node.
@@ -473,7 +538,7 @@ library LibBalanceProof {
         uint256 pathBitIndex
     )
         private
-        pure
+        view
         returns (uint256 partialPathLength, bytes32 childHash)
     {
         uint256 encodedPathPtr;
@@ -502,7 +567,7 @@ library LibBalanceProof {
     /// @return childHash The expected hash of the next node in the path.
     function _decodeExtensionNode(bytes memory nodeRLP)
         private
-        pure
+        view
         returns (uint256 encodedPathPtr, uint256 encodedPathLen, bytes32 childHash)
     {
         uint256 byte0;
@@ -552,7 +617,7 @@ library LibBalanceProof {
     /// @return newCurrPtr Points to the memory right after the encoded path.
     function _encodedPath(uint256 currPtr)
         private
-        pure
+        view
         returns (uint256 encodedPathPtr, uint256 encodedPathLen, uint256 newCurrPtr)
     {
         uint256 byte0;
@@ -602,7 +667,7 @@ library LibBalanceProof {
         uint256 pathBitIndex
     )
         private
-        pure
+        view
         returns (uint256 flag, uint256 partialPathLength)
     {
         if (encodedPathLen == 0 || encodedPathLen > 32) {
@@ -647,7 +712,7 @@ library LibBalanceProof {
     /// @return itemLen The length of the data (including the prefix).
     function _rlpItemLength(uint256 memPtr)
         private
-        pure
+        view
         returns (uint256 itemLen)
     {
         uint256 byte0;
@@ -708,7 +773,7 @@ library LibBalanceProof {
     /// @return nibble The nibble at the queried index.
     function _getNibble(bytes32 path, uint256 pathBitIndex)
         private
-        pure
+        view
         returns (uint256 nibble)
     {
         // `shl` shifts path so that the desired nibble is at the top of the word
