@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-import "forge-std/console.sol";
+// import "forge-std/console.sol";
 
 import {ERC721} from "solmate/tokens/ERC721.sol";
 import {ILiquidityLayerMessageRecipient} from "@hyperlane-xyz/core/interfaces/ILiquidityLayerMessageRecipient.sol";
@@ -144,10 +144,6 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
         );
         _mutex = false;
 
-        console.logBytes32(bidder);
-        console.log("Bidder: %s", _bidder.getAddress());
-        console.log("Bidder domain: %s", _bidder.getDomain());
-
         emit BidRevealed(
             index,
             _bidder.getDomain(),
@@ -185,7 +181,6 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
         for (uint i = 0; i < bids.length - 1; i++) {
             // accountRouter call -> check for liquidity
             uint32 destDomain = bids[i].domain;
-            console.log("bids.length", bids[i].bidderAddress);
             router.dispatchWithCallback(
                 destDomain,
                 getController(destDomain),
@@ -195,8 +190,6 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
                 ),
                 abi.encodePacked(this.checkLiquidityReceipt.selector)
             );
-
-            console.log("working");
 
             _reserve(bids[i].bidderAddress, i);
 

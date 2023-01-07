@@ -134,6 +134,7 @@ contract ThemisControllerTest is BaseTest {
             address(bridgeAdapter)
         );
 
+        console.logBytes32(TypeCasts.addressToBytes32(address(remoteBridgeAdapter)));
         bridgeAdapter.enrollRemoteRouter(
             remoteDomain,
             TypeCasts.addressToBytes32(address(remoteBridgeAdapter))

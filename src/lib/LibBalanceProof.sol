@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.15;
 
-import "forge-std/console.sol";
+// import "forge-std/console.sol";
 
 
 // @author: A16Z
@@ -441,8 +441,8 @@ library LibBalanceProof {
         // Skip over storage root
         assembly { byte0 := byte(0, mload(currPtr)) }
         assembly { byte1 := byte(0, mload(currPtr)) }
-        console.log("Storage slot");
-        console.logBytes32(byte1);
+        // console.log("Storage slot");
+        // console.logBytes32(byte1);
         if (byte0 != 0xa0) { // 32 bytes long
             revert UnexpectedByte0("storage root", bytes1(uint8(byte0)));
         }
@@ -499,7 +499,7 @@ library LibBalanceProof {
 
         // Skip over storage root
         assembly { storage0 := byte(0, mload(currPtr)) }
-        console.log("Storage slot", byte0);
+        // console.log("Storage slot", byte0);
         if (byte0 != 0xa0) { // 32 bytes long
             revert UnexpectedByte0("storage root", bytes1(uint8(byte0)));
         }

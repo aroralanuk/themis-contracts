@@ -1,4 +1,6 @@
 {
-  "contractName": "ThemisAuction",
-  "contractAddress": "0x2a9187f491633C8BFa771816D938BDb2f83D4CF1"
+  "goerliAuction": "0x4E98A12ca0944588C915B8bCa911089e2726478b",
+  "goerliRouter": "0xBe552A5324A014e84Ba1F2Ac200d25fC022fb4ed",
+  "mumbaiRouter": "0xD7d20E389E39d2D4937917b355A17a5F16cf5AA4",
+  "mumbaiController": "0xf73716aD2c2392aA40e66037ff51ef0E0E725111"
 }

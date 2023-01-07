@@ -13,12 +13,18 @@ save-auction-address :; jq '.transactions[] | select(.contractName == "ThemisAuc
 # deploy controller on mumbai aka spoke chain
 deploy-controller :; forge script script/ThemisController.s.sol:ControllerScript -f mumbai --gas-estimate-multiplier 200 --broadcast -vvvv
 
-deploy-testnet: deploy-auction save-auction-address deploy-controller
+enroll-router-mumbai :; cast send 0xdD9f7E16ABd7eEE85fC0C7dD967bAB2c6FAf8FB9 "enrollRemoteRouter(uint32,bytes32)" 5 0x00000000000000000000000013E298c6E5c38316f1484651f9e6EE2e1fec1445 --gas-price 20000000000 --rpc-url ${MUMBAI_RPC_URL} --private-key ${DEPLOYER_PRIVATE_KEY}
+
+deploy-testnet :; deploy-auction save-auction-address deploy-controller
 	echo "Deployed successfully to Goerli and Mumbai"
 
 verify-contract :; forge verify-contract 0x4390c57290d6432801fa973530377973c647cd66 src/ThemisAuction.sol:ThemisAuction --chain-id 5 --watch
 
 # More commands
-init-auction :; cast send ${AUCTION} "initialize(uint64,uint64,uint128)" 432000 86400 5000000 --rpc-url ${GOERLI_RPC_URL} --private-key ${DEPLOYER_PRIVATE_KEY}
+init-auction :; cast send ${AUCTION} "initialize(uint64,uint64,uint128)" 432000 86400 5000000 --gas-price 20000000000 --rpc-url ${GOERLI_RPC_URL} --private-key ${DEPLOYER_PRIVATE_KEY}
 
-set-usdc :; cast send ${CONTROLLER} "setCollateralToken(address)" --gas-price 100000000000 0xe6b8a5CF854791412c1f6EFC7CAf629f5Df1c747 --rpc-url ${MUMBAI_RPC_URL} --private-key ${DEPLOYER_PRIVATE_KEY}
+end-bid-period :; cast send ${AUCTION} "initialize(uint64,uint64,uint128)" 432000 86400 5000000 --gas-price 20000000000 --rpc-url ${GOERLI_RPC_URL} --private-key ${DEPLOYER_PRIVATE_KEY}
+
+set-usdc :; cast send ${CONTROLLER} "setCollateralToken(address)" --gas-price 100000000000 0xE097d6B3100777DC31B34dC2c58fB524C2e76921 --rpc-url ${MUMBAI_RPC_URL} --private-key ${DEPLOYER_PRIVATE_KEY}
+
+
