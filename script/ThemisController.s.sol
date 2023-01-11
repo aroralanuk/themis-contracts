@@ -2,6 +2,7 @@
 pragma solidity ^0.8.15;
 
 import "forge-std/Script.sol";
+import "forge-std/console.sol";
 
 import {TypeCasts} from "@hyperlane-xyz/core/contracts/libs/TypeCasts.sol";
 import {ThemisController} from "src/ThemisController.sol";
@@ -17,23 +18,24 @@ contract ControllerScript is Script {
     uint32 GOERLI_DOMAIN = 5;
     address GOERLI_ROUTER;
 
-    address AUCTION = 0x4E98A12ca0944588C915B8bCa911089e2726478b;
+    address AUCTION;
     // read auction contract from file
 
     ThemisController controller;
     ThemisRouter router;
-    // function setUp() public {
-    //     string memory path = string.concat(
-    //         vm.projectRoot(),
-    //         "/script/deploy/info.json"
-    //     );
-    //     string memory json = vm.readFile(path);
-    //     AUCTION = stdJson.readAddress(json, ".contractAddress");
-    //     GOERLI_ROUTER = stdJson.readAddress(json, ".goerliRouter");
-    // }
+
+    function setUp() public {
+        string memory path = string.concat(
+            vm.projectRoot(),
+            "/script/deploy/info.json"
+        );
+        string memory json = vm.readFile(path);
+        console.log(AUCTION);
+        AUCTION = stdJson.readAddress(json, ".goerliAuction");
+    }
 
     function run() public {
-        // setUp();
+        setUp();
 
         vm.startBroadcast(pk);
         router = new ThemisRouter();
@@ -41,7 +43,6 @@ contract ControllerScript is Script {
             MUMBAI_MAILBOX,
             MUMBAI_DOMAIN
         );
-
         controller = new ThemisController(address(router));
         controller.connectAuction(5, AUCTION);
         vm.stopBroadcast();

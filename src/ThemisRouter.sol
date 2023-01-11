@@ -144,9 +144,15 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
         );
     }
 
+    // TEST: only for testing
+    bytes32 lastSender;
+    string lastMessage;
+
+    event ReceivedMessage(uint32 origin, address sender, bytes message);
+
     function _handle(
         uint32 _origin,
-        bytes32 /* _sender */,
+        bytes32  _sender ,
         bytes calldata _message
     ) internal override {
         Action action = abi.decode(_message, (Action));
@@ -173,56 +179,59 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
                     Call({
                         to: sender,
                         data: bytes.concat(call.callback, result),
-                        callback: "0x00"
+                        callback: new bytes(0)
                     })
                 )
             );
 
             emit HandledCall(sender, call.to, result);
-        } else if (action == Action.RESOLVE) {
-            (, address sender, Call memory call) = abi.decode(
-                _message,
-                (Action, address, Call)
-            );
-
-            (bool success, bytes memory result) = call.to.call(call.data);
-
-            require(
-                success,
-                "ERROR: origin callback failed"
-            );
-
-            emit HandledCallback(sender, call.to, result);
-        } else if (action == Action.LIQUIDITY) {
-            (
-                , LiquidityData memory liqData
-            ) = abi.decode(
-                    _message,
-                    (Action, LiquidityData)
-            );
-
-            ILiquidityLayerMessageRecipient _userRecipient
-                = ILiquidityLayerMessageRecipient(
-                TypeCasts.bytes32ToAddress(liqData.recipient)
-            );
-
-            // Reverts if the adapter hasn't received the bridged tokens yet
-            (address _token, uint256 _receivedAmount) = _getAdapter(liqData.bridge)
-                .receiveTokens(
-                    _origin,
-                    address(_userRecipient),
-                    liqData.amount,
-                    liqData.adapterData
-            );
-
-            _userRecipient.handleWithTokens(
-                _origin,
-                liqData.sender,
-                liqData.messageBody,
-                _token,
-                _receivedAmount
-            );
+        } else {
+            emit HandledCall(TypeCasts.bytes32ToAddress(_sender), address(this), _message);
         }
+        // } else if (action == Action.RESOLVE) {
+        //     (, address sender, Call memory call) = abi.decode(
+        //         _message,
+        //         (Action, address, Call)
+        //     );
+
+        //     (bool success, bytes memory result) = call.to.call(call.data);
+
+        //     require(
+        //         success,
+        //         "ERROR: origin callback failed"
+        //     );
+
+        //     emit HandledCallback(sender, call.to, result);
+        // } else if (action == Action.LIQUIDITY) {
+        //     (
+        //         , LiquidityData memory liqData
+        //     ) = abi.decode(
+        //             _message,
+        //             (Action, LiquidityData)
+        //     );
+
+        //     ILiquidityLayerMessageRecipient _userRecipient
+        //         = ILiquidityLayerMessageRecipient(
+        //         TypeCasts.bytes32ToAddress(liqData.recipient)
+        //     );
+
+        //     // Reverts if the adapter hasn't received the bridged tokens yet
+        //     (address _token, uint256 _receivedAmount) = _getAdapter(liqData.bridge)
+        //         .receiveTokens(
+        //             _origin,
+        //             address(_userRecipient),
+        //             liqData.amount,
+        //             liqData.adapterData
+        //     );
+
+        //     _userRecipient.handleWithTokens(
+        //         _origin,
+        //         liqData.sender,
+        //         liqData.messageBody,
+        //         _token,
+        //         _receivedAmount
+        //     );
+        // }
     }
 
     function setLiquidityLayerAdapter(string calldata _bridge, address _adapter)

@@ -1,6 +1,6 @@
 {
-  "goerliAuction": "0x4E98A12ca0944588C915B8bCa911089e2726478b",
-  "goerliRouter": "0xBe552A5324A014e84Ba1F2Ac200d25fC022fb4ed",
-  "mumbaiRouter": "0xD7d20E389E39d2D4937917b355A17a5F16cf5AA4",
-  "mumbaiController": "0xf73716aD2c2392aA40e66037ff51ef0E0E725111"
+  "goerliAuction": "0x88a36F680d0a7A823d1eaE9eD2f71a125C591727",
+  "goerliRouter": "0xb1A92867cF97F224fDd3308B0cb9ab11c7c3C1e2",
+  "mumbaiRouter": "0x303e45b6eB575C0481c2d0a8269fc94F93fF8bC3",
+  "mumbaiController": "0xaDb7ea5A7b5B77B71eE7AbD70f4E2ce7A8fEc011"
 }

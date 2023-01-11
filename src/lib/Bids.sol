@@ -31,7 +31,7 @@ library Bids {
         uint32 capacity;
     }
 
-    function init(List storage self, uint32 capacity_) external {
+    function init(List storage self, uint32 capacity_) internal {
         if (capacity_ == 0) revert InvalidCapacity();
         self.capacity = capacity_;
     }
@@ -39,7 +39,7 @@ library Bids {
     function insert(
         List storage self,
         Element memory element
-    ) external returns (uint32) {
+    ) internal returns (uint32) {
         uint32 lesserKey = element.prevKey;
         uint32 greaterKey = element.nextKey;
         uint32 key;
@@ -120,7 +120,7 @@ library Bids {
         return key;
     }
 
-    function getAllBids(List storage self) external view returns (Element[] memory) {
+    function getAllBids(List storage self) internal view returns (Element[] memory) {
         Element[] memory elements = new Element[](self.totalBids);
         uint32 key = self.tail;
         for (uint32 i = 0; i < self.totalBids; i++) {
@@ -133,7 +133,7 @@ library Bids {
     function lt(
         Element memory element1,
         Element memory element2
-    ) public pure returns (bool) {
+    ) internal pure returns (bool) {
         return element1.bidAmount < element2.bidAmount ||
         (element1.bidAmount == element2.bidAmount &&
             element1.bidTimestamp >= element2.bidTimestamp);

@@ -123,11 +123,18 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
         );
     }
 
+    uint128 someAmount;
+
+    function testRouter() public returns (uint128) {
+        someAmount = 56;
+        return someAmount;
+    }
+
     function checkBid(bytes32 bidder, uint128 bidAmount, bytes32 salt) external returns (bool, bytes32, uint128, bytes32){
         // TODO: access control
         _bidder.init(bidder);
-        if (block.timestamp < endOfBiddingPeriod ||
-        block.timestamp > endOfRevealPeriod) revert NotInRevealPeriod();
+        // TODO: check endOfReveal
+        if (block.timestamp < endOfBiddingPeriod) revert NotInRevealPeriod();
         if (bidAmount < reservePrice) revert BidLowerThanReserve();
 
         // insert in order of bids
