@@ -134,10 +134,12 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
         // TODO: access control
         _bidder.init(bidder);
         // TODO: check endOfReveal
-        if (block.timestamp < endOfBiddingPeriod) revert NotInRevealPeriod();
-        if (bidAmount < reservePrice) revert BidLowerThanReserve();
+        // TODO: plsss
+        // if (block.timestamp < endOfBiddingPeriod) revert NotInRevealPeriod();
+        // if (bidAmount < reservePrice) revert BidLowerThanReserve();
 
         // insert in order of bids
+        setInsertLimits(0, 0);
         if (!_mutex) revert InsertLimitsNotSet();
         uint32 index = highestBids.insert(
             Bids.Element({
@@ -172,7 +174,7 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
 
 
         if (bids.length == 0) {
-            emit AuctionEnded();
+            emit AuctionEnded(block.timestamp);
             return;
         }
 
@@ -208,14 +210,14 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
             );
         }
 
-        emit AuctionEnded();
+        emit AuctionEnded(block.timestamp);
     }
 
     function _reserve(address bidder_, uint256 id_) internal {
         reserved[id_] = bidder_;
     }
 
-    function setInsertLimits(uint32 lesserkey_, uint32 greaterKey_) external {
+    function setInsertLimits(uint32 lesserkey_, uint32 greaterKey_) public {
         if (_mutex) revert InsertLimitsInUse();
         _mutex = true;
         _lesserKey = lesserkey_;
@@ -251,10 +253,14 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
 
     function endBidPeriod() external onlyOwner {
         endOfBiddingPeriod = uint64(block.timestamp);
+
+        emit RevealStarted(endOfBiddingPeriod);
     }
 
     function endRevealPeriod() external onlyOwner {
         endOfRevealPeriod = uint64(block.timestamp);
+
+        emit RevealEnded(endOfRevealPeriod);
     }
 
 

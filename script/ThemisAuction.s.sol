@@ -20,22 +20,13 @@ contract AuctionScript is Script {
 
     ThemisAuction auction;
     ThemisRouter router;
-    // function setUp() public {
-    //     string memory path = string.concat(
-    //         vm.projectRoot(),
-    //         "/script/deploy/info.json"
-    //     );
-    //     string memory json = vm.readFile(path);
-
-    //     MUMBAI_ROUTER = stdJson.readAddress(json, ".mumbaiRouter");
-    //     GOERLI_ROUTER = stdJson.readAddress(json, ".goerliRouter");
-    // }
 
     function run() public {
         vm.startBroadcast(pk);
 
         auction = new ThemisAuction("Ethereal Encounters", "EE", 100);
-        router = new ThemisRouter();
+        router = new ThemisRouter
+            {salt: TypeCasts.addressToBytes32(address(auction)) }();
         router.initialize(
             GOERLI_MAILBOX,
             GOERLI_DOMAIN

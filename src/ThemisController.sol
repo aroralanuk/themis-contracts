@@ -82,7 +82,7 @@ contract ThemisController is IThemis {
         );
         // overwrite reveal start block
         revealStartBlock = uint96(block.number);
-        emit RevealStarted();
+        emit RevealStartedController(block.timestamp);
     }
 
     function revealBid(

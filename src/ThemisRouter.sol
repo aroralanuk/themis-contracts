@@ -96,6 +96,7 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
         );
     }
 
+
     function dispatchWithTokens(
         uint32 _destinationDomain,
         bytes32 _recipientAddress,
@@ -166,10 +167,10 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
             );
             (bool success, bytes memory result) = call.to.call(call.data);
 
-            require(
-                success,
-                "ERROR: destination call failed"
-            );
+            // require(
+            //     success,
+            //     "ERROR: destination call failed"
+            // );
 
             _dispatch(
                 _origin,

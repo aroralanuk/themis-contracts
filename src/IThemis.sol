@@ -61,8 +61,10 @@ interface IThemis {
         uint128 bidAmount
     );
 
-    event RevealStarted();
-    event AuctionEnded();
+    event RevealStarted(uint256 timestamp);
+    event RevealStartedController(uint256 timestamp);
+    event RevealEnded(uint timestamp);
+    event AuctionEnded(uint256 timestamp);
 
     event VaultDeployed(
         bytes32 indexed auction,

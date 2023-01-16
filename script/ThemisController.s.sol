@@ -38,7 +38,7 @@ contract ControllerScript is Script {
         setUp();
 
         vm.startBroadcast(pk);
-        router = new ThemisRouter();
+        router = new ThemisRouter{salt: TypeCasts.addressToBytes32(AUCTION)}();
         router.initialize(
             MUMBAI_MAILBOX,
             MUMBAI_DOMAIN
@@ -47,16 +47,4 @@ contract ControllerScript is Script {
         controller.connectAuction(5, AUCTION);
         vm.stopBroadcast();
     }
-
-    // function enrollRouter() public {
-    //     setUp();
-
-    //     vm.startBroadcast(pk);
-    //     router = ThemisRouter(MUMBAI_ROUTER);
-    //     router.enrollRemoteRouter(
-    //         GOERLI_DOMAIN,
-    //         TypeCasts.addressToBytes32(GOERLI_ROUTER)
-    //     );
-    //     vm.stopBroadcast();
-    // }
 }
