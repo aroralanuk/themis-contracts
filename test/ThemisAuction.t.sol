@@ -13,11 +13,9 @@ import {ThemisRouter} from "src/ThemisRouter.sol";
 
 
 import {BaseTest} from "test/utils/BaseTest.sol";
-import {BidsTest} from "test/Bids.t.sol";
-
 
 contract ThemisAuctionTest is BaseTest {
-    using Bids for Bids.List;
+    using Bids for Bids.Heap;
     using XAddress for XAddress.Info;
 
     XAddress.Info internal _bidder;
@@ -57,8 +55,6 @@ contract ThemisAuctionTest is BaseTest {
 
         _bidder.init(1, alice);
 
-        auction.setInsertLimits(0, 0);
-
         vm.expectRevert(IThemis.NotInRevealPeriod.selector);
         auction.checkBid(_bidder.toBytes32(), 0.2 ether, salt);
     }
@@ -82,7 +78,6 @@ contract ThemisAuctionTest is BaseTest {
                 bidTimestamp: uint64(block.timestamp + i)
             });
             _bidder.init(testDomains[i], testUsers[i]);
-            auction.setInsertLimits(testLesserKey[i], testGreaterKey[i]);
             auction.checkBid(
                 _bidder.toBytes32(),
                 testBids[i],
@@ -90,7 +85,7 @@ contract ThemisAuctionTest is BaseTest {
             );
         }
 
-        Bids.Element[] memory bids = auction.getHighestBids();
+        Bids.Node[] memory bids = auction.getHighestBids();
         assertAllBids(bids, expected);
     }
 
@@ -101,23 +96,19 @@ contract ThemisAuctionTest is BaseTest {
             uint128(50e6)
         );
 
-        testLesserKey = [0, 0, 0];
-        testGreaterKey = [2, 1, 0];
-
         vm.warp(block.timestamp + 1 hours);
         for (uint256 j = MAX_SUPPLY; j > 0; j--) {
             uint i = j - 1;
             salt = genBytes32();
 
             _bidder.init(testDomains[i], testUsers[i]);
-            auction.setInsertLimits(testLesserKey[i], testGreaterKey[i]);
             auction.checkBid(
                 _bidder.toBytes32(),
                 testBids[i],
                 salt
             );
         }
-        assertBidsOrder(auction.getHighestBids());
+        assertHeapProperty(auction.getHighestBids());
     }
 
     function testCheckBid_Full_LowBid() public {
@@ -127,9 +118,6 @@ contract ThemisAuctionTest is BaseTest {
             uint128(50e6)
         );
 
-        testLesserKey = [0,1,2,0];
-        testGreaterKey = [0,0,0,1];
-
         vm.warp(block.timestamp + 1 hours);
 
         for (uint256 i = 0; i < 4; i++) {
@@ -137,15 +125,13 @@ contract ThemisAuctionTest is BaseTest {
             // [alice, bob, charlie]
 
             _bidder.init(testDomains[i], testUsers[i]);
-
-            auction.setInsertLimits(testLesserKey[i], testGreaterKey[i]);
             auction.checkBid(
                 _bidder.toBytes32(),
                 testBids[i],
                 salt
             );
         }
-        assertBidsOrder(auction.getHighestBids());
+        assertHeapProperty(auction.getHighestBids());
     }
 
     function testEndAuction_NoBids() public {
@@ -171,7 +157,6 @@ contract ThemisAuctionTest is BaseTest {
         vm.warp(block.timestamp + 1 hours);
         salt = genBytes32();
         _bidder.init(testDomains[0], testUsers[0]);
-        auction.setInsertLimits(testLesserKey[0], testGreaterKey[0]);
         auction.checkBid(
             _bidder.toBytes32(),
             testBids[0],
@@ -203,7 +188,7 @@ contract ThemisAuctionTest is BaseTest {
     }
 
     function assertBid(
-        Bids.Element memory bid,
+        Bids.Node memory bid,
         BidParams memory expected
     ) internal {
         assertEq(bid.domain, expected.domain);
@@ -212,7 +197,7 @@ contract ThemisAuctionTest is BaseTest {
     }
 
     function assertAllBids(
-        Bids.Element[] memory bids,
+        Bids.Node[] memory bids,
         BidParams[] memory expected
     ) internal {
         assertEq(bids.length, expected.length);
@@ -221,16 +206,21 @@ contract ThemisAuctionTest is BaseTest {
         }
     }
 
-    function assertBidsOrder(Bids.Element[] memory bidsArray)
-        internal pure returns (bool)
-    {
-        for (uint i = 0; i < bidsArray.length - 1; i++) {
-            Bids.Element memory element = bidsArray[i];
-            Bids.Element memory nextElement = bidsArray[i + 1];
-            if (!Bids.lt(element, nextElement)) {
-                return false;
+    function assertHeapProperty(Bids.Node[] memory bids) internal pure {
+        require(bids.length == 3);
+        for (uint256 i = 0; i < bids.length; i++) {
+            uint256 left = 2 * i + 1;
+            uint256 right = 2 * i + 2;
+            if (left < bids.length) {
+                require(
+                    bids[i].bidAmount <= bids[left].bidAmount, "HEAP_PROPERTY_VIOLATED"
+                );
+            }
+            if (right < bids.length) {
+                require(
+                    bids[i].bidAmount <= bids[right].bidAmount, "HEAP_PROPERTY_VIOLATED"
+                );
             }
         }
-        return true;
     }
 }

@@ -1,141 +1,163 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-// import "forge-std/console.sol";
 
 library Bids {
-    error EmptyList();
-    error InvalidCapacity();
-    error InvalidElement();
-    error InvalidGreaterKey();
-    error InvalidLesserKey();
-    error InvalidNextKey();
-    error InvalidPreviousKey();
-    error NotEmptyList();
-
-    struct Element {
+    struct Node {
         uint32 domain;
         address bidderAddress;
         uint128 bidAmount;
         uint64 bidTimestamp;
-
-        uint32 prevKey;
-        uint32 nextKey;
     }
 
-    struct List {
-        uint32 head;
-        uint32 tail;
-        mapping(uint32 => Element) elements; // 1-indexed
+    struct Heap {
+        uint32[] array;
+        mapping(uint32 => Node) index; // 1-indexed
         uint32 totalBids;
-        uint32 capacity;
     }
 
-    function init(List storage self, uint32 capacity_) internal {
-        if (capacity_ == 0) revert InvalidCapacity();
-        self.capacity = capacity_;
+    error BidTooLow();
+
+    function initialize(
+        Heap storage self,
+        uint32 capacity
+        ) external {
+        self.array = new uint32[](capacity);
     }
 
     function insert(
-        List storage self,
-        Element memory element
+        Heap storage self,
+        uint32 domain,
+        address bidderAddress,
+        uint128 bidAmount,
+        uint64 bidTimestamp
     ) internal returns (uint32) {
-        uint32 lesserKey = element.prevKey;
-        uint32 greaterKey = element.nextKey;
-        uint32 key;
+        if (self.totalBids == self.array.length
+            && bidAmount < self.index[self.array[0]].bidAmount) {
 
-        if (lesserKey == 0 && greaterKey == 0) {
-            if (self.totalBids > 0) revert NotEmptyList();
-            key = self.totalBids + 1;
-            self.elements[key] = element;
-
-            element.prevKey = 0;
-            element.nextKey = 0;
-
-            self.head = key;
-            self.tail = key;
-        } else if (lesserKey == 0){
-            Element memory greaterElement = self.elements[greaterKey];
-            if (!lt(element, greaterElement)) revert InvalidGreaterKey();
-            if (greaterElement.prevKey != 0) revert InvalidPreviousKey();
-
-            key = self.totalBids + 1;
-            element.nextKey = greaterKey;
-            element.prevKey = 0;
-            self.elements[key] = element;
-
-            self.elements[greaterKey].prevKey = key;
-            self.head = key;
-        } else if (greaterKey == 0){
-            Element memory lesserElement = self.elements[lesserKey];
-            if (!lt(lesserElement, element)) revert InvalidLesserKey();
-            if (lesserElement.nextKey != 0) revert InvalidNextKey();
-
-            key = self.totalBids + 1;
-            element.prevKey = lesserKey;
-            element.nextKey = 0;
-            self.elements[key] = element;
-
-            self.elements[lesserKey].nextKey = key;
-            self.tail = key;
+            return 0;
+        } else if (self.totalBids == self.array.length) {
+            uint32 discarded = self.array[0];
+            self.array[0] = self.totalBids + 1;
+            self.index[self.totalBids + 1] = Node(
+                domain,
+                bidderAddress,
+                bidAmount,
+                bidTimestamp
+            );
+            heapify(self, 0);
+            return discarded;
         } else {
-            Element memory lesserElement = self.elements[lesserKey];
-            Element memory greaterElement = self.elements[greaterKey];
+            self.array[self.totalBids] = self.totalBids + 1;
+            self.index[self.totalBids + 1] = Node(
+                domain,
+                bidderAddress,
+                bidAmount,
+                bidTimestamp
+            );
+            self.totalBids++;
 
-            if (!lt(lesserElement, element)) revert InvalidLesserKey();
-            if (!lt(element, greaterElement)) revert InvalidGreaterKey();
-            if (lesserElement.nextKey != greaterKey) revert InvalidNextKey();
-
-            key = self.totalBids + 1;
-            element.prevKey = lesserKey;
-            element.nextKey = greaterKey;
-            self.elements[key] = element;
-
-            self.elements[lesserKey].nextKey = key;
-            self.elements[greaterKey].prevKey = key;
+            uint32 i = self.totalBids - 1;
+            while (i > 0 && getBid(self, i).bidAmount
+                                < getBid(self, (i - 1) / 2).bidAmount) {
+                swap(self, i, (i - 1) / 2);
+                i = (i - 1) / 2;
+            }
+            return 0;
         }
-        self.totalBids += 1;
-        if (self.totalBids > self.capacity) {
-            return pop(self);
-        }
-        return key;
+
+
     }
 
-    function pop(List storage self) internal returns (uint32) {
-        if (self.totalBids == 0) revert EmptyList();
-
-        uint32 key = self.head;
-        Element memory element = self.elements[key];
-        if (element.bidderAddress == address(0)) revert InvalidElement();
-
-        if (self.totalBids == 1) {
-            self.head = 0;
-            self.tail = 0;
-        } else {
-            self.head = element.nextKey;
-            self.elements[element.nextKey].prevKey = 0;
+    function heapify(
+        Heap storage self,
+        uint32 i
+    ) internal {
+        uint32 l = 2 * i + 1;
+        uint32 r = 2 * i + 2;
+        uint32 smallest = i;
+        if (
+            l < self.totalBids &&
+            getBid(self, l).bidAmount < getBid(self, smallest).bidAmount
+        ) {
+            smallest = l;
+        }
+        if (
+            r < self.totalBids &&
+            getBid(self, r).bidAmount < getBid(self, smallest).bidAmount
+        ) {
+            smallest = r;
         }
 
-        self.totalBids -= 1;
-        return key;
+        if (smallest != i) {
+            swap(self, i, smallest);
+            heapify(self, smallest);
+        }
     }
 
-    function getAllBids(List storage self) internal view returns (Element[] memory) {
-        Element[] memory elements = new Element[](self.totalBids);
-        uint32 key = self.tail;
+    function getBid(
+        Heap storage self,
+        uint32 bidIndex
+    ) internal view returns (Node memory) {
+        return self.index[self.array[bidIndex]];
+    }
+
+    function getAllBids(
+        Heap storage self
+    ) internal view returns (Node[] memory) {
+        Node[] memory bids = new Node[](self.totalBids);
         for (uint32 i = 0; i < self.totalBids; i++) {
-            elements[i] = self.elements[key];
-            key = self.elements[key].prevKey;
+            bids[i] = self.index[self.array[i]];
         }
-        return elements;
+        return bids;
     }
 
-    function lt(
-        Element memory element1,
-        Element memory element2
-    ) internal pure returns (bool) {
-        return element1.bidAmount < element2.bidAmount ||
-        (element1.bidAmount == element2.bidAmount &&
-            element1.bidTimestamp >= element2.bidTimestamp);
+    function contains(
+        Heap storage self,
+        uint32 domain,
+        address bidderAddress
+    ) internal view returns (bool) {
+        return getBidPosition(self, domain, bidderAddress) < self.totalBids;
+    }
+
+    function getBidPosition(
+        Heap storage self,
+        uint32 domain,
+        address bidderAddress
+    ) internal view returns (uint32) {
+        for (uint32 i = 0; i < self.totalBids; i++) {
+            if (self.index[self.array[i]].domain == domain
+                && self.index[self.array[i]].bidderAddress == bidderAddress) {
+                return i;
+            }
+        }
+        return self.totalBids;
+    }
+
+    function swap(
+        Heap storage self,
+        uint32 i,
+        uint32 j
+    ) internal {
+        (self.array[i], self.array[j])
+            = (self.array[j], self.array[i]);
+    }
+
+    function assertHeapProperty(Node[] memory bids) internal pure {
+        require(bids.length == 3);
+        for (uint256 i = 0; i < bids.length; i++) {
+            uint256 left = 2 * i + 1;
+            uint256 right = 2 * i + 2;
+            if (left < bids.length) {
+                require(
+                    bids[i].bidAmount <= bids[left].bidAmount, "HEAP_PROPERTY_VIOLATED"
+                );
+            }
+            if (right < bids.length) {
+                require(
+                    bids[i].bidAmount <= bids[right].bidAmount, "HEAP_PROPERTY_VIOLATED"
+                );
+            }
+        }
     }
 }
