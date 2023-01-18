@@ -43,7 +43,7 @@ library Bids {
         uint32 lesserKey = element.prevKey;
         uint32 greaterKey = element.nextKey;
         uint32 key;
-
+        // list is empty
         if (lesserKey == 0 && greaterKey == 0) {
             if (self.totalBids > 0) revert NotEmptyList();
             key = self.totalBids + 1;

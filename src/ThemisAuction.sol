@@ -139,7 +139,7 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
         // if (bidAmount < reservePrice) revert BidLowerThanReserve();
 
         // insert in order of bids
-        setInsertLimits(0, 0);
+        // setInsertLimits(0, 0);
         if (!_mutex) revert InsertLimitsNotSet();
         uint32 index = highestBids.insert(
             Bids.Element({
