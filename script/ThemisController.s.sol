@@ -12,7 +12,7 @@ contract ControllerScript is Script {
     uint256 pk = vm.envUint("DEPLOYER_PRIVATE_KEY");
 
     uint32 MUMBAI_DOMAIN = 80001;
-    address MUMBAI_MAILBOX = 0x1d3aAC239538e6F1831C8708803e61A9EA299Eec;
+    address MUMBAI_MAILBOX = 0xCC737a94FecaeC165AbCf12dED095BB13F037685;
     address MUMBAI_ROUTER;
 
     uint32 GOERLI_DOMAIN = 5;
@@ -45,6 +45,7 @@ contract ControllerScript is Script {
         );
         controller = new ThemisController(address(router));
         controller.connectAuction(5, AUCTION);
+        router.setEndpoint(address(controller));
         vm.stopBroadcast();
     }
 }

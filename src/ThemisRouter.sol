@@ -1,18 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-// import "forge-std/console.sol";
+import "forge-std/console.sol";
 
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 
 import {TypeCasts} from "@hyperlane-xyz/core/contracts/libs/TypeCasts.sol";
 import {Router} from "@hyperlane-xyz/core/contracts/Router.sol";
+import {XAddress} from "src/lib/XAddress.sol";
+import "src/lib/Utils.sol";
 import {ILiquidityLayerRouter} from "./interfaces/ILiquidityLayerRouter.sol";
 import {ILiquidityLayerAdapter} from "./interfaces/ILiquidityLayerAdapter.sol";
 import {ILiquidityLayerMessageRecipient} from "./interfaces/ILiquidityLayerMessageRecipient.sol";
 
 contract ThemisRouter is Router, ILiquidityLayerRouter  {
+    using XAddress for XAddress.Info;
     // remote.dispatch -> origin.handle -> auction.checkBid -> origin.dispatch -> remote.handle -> vault.refund
 
     // auction.distribute -> origin.dispatch -> remote.handle -> remote.dispatchWithTokens -> origin.handleWithTokens -> auction.mint
@@ -20,7 +23,13 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
     using SafeTransferLib for ERC20;
 
     uint32 public DOMAIN;
+    address public AUCTION;
+    address public CONTROLLER;
+
+    XAddress.Info internal _address;
+
     enum Action {
+        REVEAL_BID,
         DISPATCH,
         LIQUIDITY,
         RESOLVE
@@ -71,6 +80,36 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
         __HyperlaneConnectionClient_initialize(mailbox);
         // hyperlane domain for this chain
         DOMAIN = domain;
+    }
+
+    function setEndpoint(address endpoint) external initializer {
+        if (DOMAIN == 5) {
+            AUCTION = endpoint;
+        } else {
+            CONTROLLER = endpoint;
+        }
+    }
+
+    function dispatchRevealBid(
+        uint32 _destinationDomain,
+        address _target,
+        bytes calldata data
+    ) external returns (bytes32 messageId) {
+        messageId = _dispatch(
+            _destinationDomain,
+            abi.encode(
+                Action.REVEAL_BID,
+                msg.sender,
+                Call({to: _target, data: data, callback: new bytes(0)})
+            )
+        );
+
+        emit DispatchedWithCallback(
+            _destinationDomain,
+            msg.sender,
+            _target,
+            messageId
+        );
     }
 
     function dispatchWithCallback(
@@ -145,10 +184,6 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
         );
     }
 
-    // TEST: only for testing
-    bytes32 lastSender;
-    string lastMessage;
-
     event ReceivedMessage(uint32 origin, address sender, bytes message);
 
     function _handle(
@@ -159,6 +194,60 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
         Action action = abi.decode(_message, (Action));
 
         // pattern match action type
+        if (action == Action.REVEAL_BID) {
+            // IF DISPATCH BID CALL
+            // check for return true or false, reval or not
+            (, address sender, Call memory call) = abi.decode(
+                _message,
+                (Action, address, Call)
+            );
+
+            // call to checkBid()
+            (bool success, bytes memory result) = call.to.call(call.data);
+
+            // TODO: onlyTesting
+            require(
+                success,
+                "ERROR: routing to auction failed"
+            );
+
+            success = success && abi.decode(result, (bool));
+
+
+            bytes memory argData = extractCalldata(call.data);
+
+            (bytes32 bidder, uint128 amount, bytes32 salt) = abi.decode(
+                argData,
+                (bytes32, uint128, bytes32)
+            );
+            _address.init(bidder);
+
+            if (!success) {
+                CONTROLLER.call(
+                    abi.encodeWithSignature(
+                        "revealBidCallback(address,uint128,bytes32,bool)",
+                        _address.getAddress(),
+                        amount,
+                        salt,
+                        false
+                    )
+                );
+            } else {
+                CONTROLLER.call(
+                    abi.encodeWithSignature(
+                        "revealBidCallback(address,uint128,bytes32,bool)",
+                        _address.getAddress(),
+                        amount,
+                        salt,
+                        true
+                    )
+                );
+            }
+
+            console.logBytes(call.data);
+
+            emit ReceivedMessage(_origin, call.to, _message);
+        }
         if (action == Action.DISPATCH) {
 
             (, address sender, Call memory call) = abi.decode(

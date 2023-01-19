@@ -106,7 +106,7 @@ contract ThemisController is IThemis {
 
         _bidder.init(_router.getDomain(), bidder_);
 
-        routerContract.dispatchWithCallback(
+        routerContract.dispatchRevealBid(
             _auction.getDomain(),
             _auction.getAddress(),
             abi.encodeCall(
@@ -116,8 +116,7 @@ contract ThemisController is IThemis {
                     vaultBalance,
                     salt_
                 )
-            ),
-            abi.encodePacked(this.revealBidCallback.selector)
+            )
         );
 
         emit BidProvenRemote(
@@ -138,7 +137,6 @@ contract ThemisController is IThemis {
 
         // testing for now
         // if (revealedVault[vault]) revert BidAlreadyRevealed();
-        success_ = true;
 
         revealedVault[vault] = true;
 

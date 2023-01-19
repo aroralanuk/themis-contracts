@@ -11,7 +11,7 @@ import {ThemisRouter} from "src/ThemisRouter.sol";
 contract AuctionScript is Script {
     uint256 pk = vm.envUint("DEPLOYER_PRIVATE_KEY");
 
-    address GOERLI_MAILBOX = 0x1d3aAC239538e6F1831C8708803e61A9EA299Eec;
+    address GOERLI_MAILBOX = 0xCC737a94FecaeC165AbCf12dED095BB13F037685;
     uint32 GOERLI_DOMAIN = 5;
     address GOERLI_ROUTER;
 

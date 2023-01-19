@@ -29,10 +29,6 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
     uint64 public endOfRevealPeriod;
     uint128 public reservePrice;
 
-    uint32 internal _lesserKey;
-    uint32 internal _greaterKey;
-    bool internal _mutex;
-
     mapping (uint32 => address) public controllers;
     mapping(uint256 => address) public reserved;
 
@@ -130,11 +126,10 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
         return someAmount;
     }
 
-    function checkBid(bytes32 bidder, uint128 bidAmount, bytes32 salt) external returns (bool, bytes32, uint128, bytes32){
+    function checkBid(bytes32 bidder, uint128 bidAmount, bytes32 salt) external returns (bool) {
         // TODO: access control
         _bidder.init(bidder);
-        // TODO: check endOfReveal
-        // TODO: plsss
+        // TODO: check endOfRevealPeriod
         // if (block.timestamp < endOfBiddingPeriod) revert NotInRevealPeriod();
         // if (bidAmount < reservePrice) revert BidLowerThanReserve();
 
@@ -153,7 +148,7 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
             uint64(block.timestamp)
         );
 
-        return (index == 0, bidder, bidAmount, salt);
+        return index == 0;
     }
 
     // TODO: later
