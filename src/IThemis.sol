@@ -40,9 +40,10 @@ interface IThemis {
     );
 
     event BidRevealed(
-        uint32 indexed currentPosition,
-        uint32 indexed domain,
-        address indexed bidderAddress,
+        uint32 indexed discardedIndex,
+        uint32 indexed bidIndex,
+        uint32 domain,
+        address bidderAddress,
         uint128 amount,
         uint64 timestamp
     );

@@ -31,31 +31,32 @@ library Bids {
         address bidderAddress,
         uint128 bidAmount,
         uint64 bidTimestamp
-    ) internal returns (uint32) {
-        if (self.totalBids == self.array.length
+    ) internal returns (uint32,uint32) {
+        if (self.totalBids >= self.array.length
             && bidAmount < self.index[self.array[0]].bidAmount) {
 
-            return 0;
-        } else if (self.totalBids == self.array.length) {
+            return (0,0);
+        } else if (self.totalBids >= self.array.length) {
             uint32 discarded = self.array[0];
-            self.array[0] = self.totalBids + 1;
-            self.index[self.totalBids + 1] = Node(
+            self.totalBids++;
+            self.array[0] = self.totalBids;
+            self.index[self.totalBids] = Node(
                 domain,
                 bidderAddress,
                 bidAmount,
                 bidTimestamp
             );
             heapify(self, 0);
-            return discarded;
+            return (self.totalBids, discarded);
         } else {
-            self.array[self.totalBids] = self.totalBids + 1;
-            self.index[self.totalBids + 1] = Node(
+            self.totalBids++;
+            self.array[self.totalBids] = self.totalBids;
+            self.index[self.totalBids] = Node(
                 domain,
                 bidderAddress,
                 bidAmount,
                 bidTimestamp
             );
-            self.totalBids++;
 
             uint32 i = self.totalBids - 1;
             while (i > 0 && getBid(self, i).bidAmount
@@ -63,7 +64,7 @@ library Bids {
                 swap(self, i, (i - 1) / 2);
                 i = (i - 1) / 2;
             }
-            return 0;
+            return (self.totalBids, 0);
         }
 
 

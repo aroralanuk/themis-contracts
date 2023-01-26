@@ -67,7 +67,7 @@ library LibBalanceProof {
         address account
     )
         internal
-        view
+        pure
         returns (uint256 accountBalance)
     {
         bytes32 proofPath = keccak256(abi.encodePacked(account));
@@ -89,7 +89,7 @@ library LibBalanceProof {
     /// @return root The state root extracted from the block header.
     function getStateRoot(bytes memory blockHeaderRLP, bytes32 blockHash)
         internal
-        view
+        pure
         returns (bytes32 root)
     {
         // prevent from reading invalid memory
@@ -118,7 +118,7 @@ library LibBalanceProof {
         bytes32 path
     )
         internal
-        view
+        pure
         returns (uint256 accountBalance)
     {
         bytes32 expectedHash = stateRoot; // Required hash for the next node
@@ -191,7 +191,7 @@ library LibBalanceProof {
         uint256 pathBitIndex
     )
         private
-        view
+        pure
         returns (bool isBranchNode, bytes32 childHash)
     {
         if (nodeRLP.length == 0) {
@@ -275,7 +275,7 @@ library LibBalanceProof {
         uint256 pathBitIndex
     )
         private
-        view
+        pure
         returns (uint256 accountBalance)
     {
         (
@@ -314,7 +314,7 @@ library LibBalanceProof {
     /// @return accountStateLen Length in bytes of the account state.
     function _decodeLeafNode(bytes memory nodeRLP)
         private
-        view
+        pure
         returns (
             uint256 encodedPathPtr,
             uint256 encodedPathLen,
@@ -392,7 +392,7 @@ library LibBalanceProof {
         uint256 accountStateLen
     )
         private
-        view
+        pure
         returns (uint256 accountBalance)
     {
         if (accountStateLen == 0) {
@@ -474,7 +474,7 @@ library LibBalanceProof {
         uint256 accountStateLen
     )
         private
-        view
+        pure
         returns (bytes32 storage0)
     {
         if (accountStateLen == 0) {
@@ -538,7 +538,7 @@ library LibBalanceProof {
         uint256 pathBitIndex
     )
         private
-        view
+        pure
         returns (uint256 partialPathLength, bytes32 childHash)
     {
         uint256 encodedPathPtr;
@@ -567,7 +567,7 @@ library LibBalanceProof {
     /// @return childHash The expected hash of the next node in the path.
     function _decodeExtensionNode(bytes memory nodeRLP)
         private
-        view
+        pure
         returns (uint256 encodedPathPtr, uint256 encodedPathLen, bytes32 childHash)
     {
         uint256 byte0;
@@ -617,7 +617,7 @@ library LibBalanceProof {
     /// @return newCurrPtr Points to the memory right after the encoded path.
     function _encodedPath(uint256 currPtr)
         private
-        view
+        pure
         returns (uint256 encodedPathPtr, uint256 encodedPathLen, uint256 newCurrPtr)
     {
         uint256 byte0;
@@ -667,7 +667,7 @@ library LibBalanceProof {
         uint256 pathBitIndex
     )
         private
-        view
+        pure
         returns (uint256 flag, uint256 partialPathLength)
     {
         if (encodedPathLen == 0 || encodedPathLen > 32) {
@@ -712,7 +712,7 @@ library LibBalanceProof {
     /// @return itemLen The length of the data (including the prefix).
     function _rlpItemLength(uint256 memPtr)
         private
-        view
+        pure
         returns (uint256 itemLen)
     {
         uint256 byte0;
@@ -773,7 +773,7 @@ library LibBalanceProof {
     /// @return nibble The nibble at the queried index.
     function _getNibble(bytes32 path, uint256 pathBitIndex)
         private
-        view
+        pure
         returns (uint256 nibble)
     {
         // `shl` shifts path so that the desired nibble is at the top of the word

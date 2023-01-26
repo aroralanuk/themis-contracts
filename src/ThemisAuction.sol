@@ -126,14 +126,14 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
         return someAmount;
     }
 
-    function checkBid(bytes32 bidder, uint128 bidAmount, bytes32 salt) external returns (bool) {
+    function checkBid(bytes32 bidder, uint128 bidAmount) external returns (bool) {
         // TODO: access control
         _bidder.init(bidder);
         // TODO: check endOfRevealPeriod
         // if (block.timestamp < endOfBiddingPeriod) revert NotInRevealPeriod();
         // if (bidAmount < reservePrice) revert BidLowerThanReserve();
 
-        uint32 index = highestBids.insert({
+        (uint32 index, uint32 discarded) = highestBids.insert({
             domain: _bidder.getDomain(),
             bidderAddress: _bidder.getAddress(),
             bidAmount: bidAmount,
@@ -141,6 +141,7 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
         });
 
         emit BidRevealed(
+            discarded,
             index,
             _bidder.getDomain(),
             _bidder.getAddress(),
@@ -177,6 +178,8 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
         for (uint i = 0; i < bids.length - 1; i++) {
             // accountRouter call -> check for liquidity
             uint32 destDomain = bids[i].domain;
+
+            // TODO: fix this
             router.dispatchWithCallback(
                 destDomain,
                 getController(destDomain),

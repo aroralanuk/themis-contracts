@@ -23,8 +23,8 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
     using SafeTransferLib for ERC20;
 
     uint32 public DOMAIN;
-    address public AUCTION;
-    address public CONTROLLER;
+    XAddress.Info public AUCTION_CONTRACT;
+    address public ENDPOINT;
 
     XAddress.Info internal _address;
 
@@ -61,7 +61,6 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
     struct Call {
         address to;
         bytes data;
-        bytes callback;
     }
 
     struct LiquidityData {
@@ -83,31 +82,48 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
     }
 
     function setEndpoint(address endpoint) external initializer {
-        if (DOMAIN == 5) {
-            AUCTION = endpoint;
-        } else {
-            CONTROLLER = endpoint;
-        }
+        ENDPOINT = endpoint;
+    }
+
+    /**
+     * @notice Register the address of a Router contract for the same Application on a remote chain
+     * @param _domain The domain of the remote Application Router
+     * @param _router The address of the remote Application Router
+     */
+    function enrollRemoteRouter(uint32 _domain, bytes32 _router)
+        external
+        virtual
+        onlyOwner
+        override
+    {
+        _enrollRemoteRouter(_domain, _router);
     }
 
     function dispatchRevealBid(
-        uint32 _destinationDomain,
-        address _target,
-        bytes calldata data
+        address bidder,
+        uint128 bidAmount,
+        bytes32 salt
     ) external returns (bytes32 messageId) {
+
+        _address.init(DOMAIN, bidder);
+
         messageId = _dispatch(
-            _destinationDomain,
+            AUCTION_CONTRACT.getDomain(),
             abi.encode(
                 Action.REVEAL_BID,
                 msg.sender,
-                Call({to: _target, data: data, callback: new bytes(0)})
+                Call({
+                    to: AUCTION_CONTRACT.getAddress(),
+                    data: abi.encodeWithSignature("checkBid(bytes32,uint128",_address.toBytes32(), bidAmount)
+                }),
+                salt
             )
         );
 
         emit DispatchedWithCallback(
-            _destinationDomain,
+            AUCTION_CONTRACT.getDomain(),
             msg.sender,
-            _target,
+            AUCTION_CONTRACT.getAddress(),
             messageId
         );
     }
@@ -123,7 +139,7 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
             abi.encode(
                 Action.DISPATCH,
                 msg.sender,
-                Call({to: _target, data: data, callback: callback})
+                Call({to: _target, data: data})
             )
         );
 
@@ -197,9 +213,9 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
         if (action == Action.REVEAL_BID) {
             // IF DISPATCH BID CALL
             // check for return true or false, reval or not
-            (, address sender, Call memory call) = abi.decode(
+            ( , , Call memory call, bytes32 salt) = abi.decode(
                 _message,
-                (Action, address, Call)
+                (Action, address, Call, bytes32)
             );
 
             // call to checkBid()
@@ -213,17 +229,16 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
 
             success = success && abi.decode(result, (bool));
 
-
             bytes memory argData = extractCalldata(call.data);
 
-            (bytes32 bidder, uint128 amount, bytes32 salt) = abi.decode(
+            (bytes32 bidder, uint128 amount) = abi.decode(
                 argData,
-                (bytes32, uint128, bytes32)
+                (bytes32, uint128)
             );
             _address.init(bidder);
 
             if (!success) {
-                CONTROLLER.call(
+                ( success, ) = ENDPOINT.call(
                     abi.encodeWithSignature(
                         "revealBidCallback(address,uint128,bytes32,bool)",
                         _address.getAddress(),
@@ -233,7 +248,7 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
                     )
                 );
             } else {
-                CONTROLLER.call(
+                ( success, ) = ENDPOINT.call(
                     abi.encodeWithSignature(
                         "revealBidCallback(address,uint128,bytes32,bool)",
                         _address.getAddress(),
@@ -256,22 +271,9 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
             );
             (bool success, bytes memory result) = call.to.call(call.data);
 
-            // require(
-            //     success,
-            //     "ERROR: destination call failed"
-            // );
-
-            _dispatch(
-                _origin,
-                abi.encode(
-                    Action.RESOLVE,
-                    address(this),
-                    Call({
-                        to: sender,
-                        data: bytes.concat(call.callback, result),
-                        callback: new bytes(0)
-                    })
-                )
+            require(
+                success,
+                "ERROR: destination call failed"
             );
 
             emit HandledCall(sender, call.to, result);

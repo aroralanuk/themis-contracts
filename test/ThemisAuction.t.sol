@@ -56,7 +56,7 @@ contract ThemisAuctionTest is BaseTest {
         _bidder.init(1, alice);
 
         vm.expectRevert(IThemis.NotInRevealPeriod.selector);
-        auction.checkBid(_bidder.toBytes32(), 0.2 ether, salt);
+        auction.checkBid(_bidder.toBytes32(), 0.2 ether);
     }
 
     function testCheckBid_Ascending() public {
@@ -78,11 +78,7 @@ contract ThemisAuctionTest is BaseTest {
                 bidTimestamp: uint64(block.timestamp + i)
             });
             _bidder.init(testDomains[i], testUsers[i]);
-            auction.checkBid(
-                _bidder.toBytes32(),
-                testBids[i],
-                salt
-            );
+            auction.checkBid(_bidder.toBytes32(),testBids[i]);
         }
 
         Bids.Node[] memory bids = auction.getHighestBids();
@@ -102,11 +98,7 @@ contract ThemisAuctionTest is BaseTest {
             salt = genBytes32();
 
             _bidder.init(testDomains[i], testUsers[i]);
-            auction.checkBid(
-                _bidder.toBytes32(),
-                testBids[i],
-                salt
-            );
+            auction.checkBid(_bidder.toBytes32(), testBids[i]);
         }
         assertHeapProperty(auction.getHighestBids());
     }
@@ -125,11 +117,7 @@ contract ThemisAuctionTest is BaseTest {
             // [alice, bob, charlie]
 
             _bidder.init(testDomains[i], testUsers[i]);
-            auction.checkBid(
-                _bidder.toBytes32(),
-                testBids[i],
-                salt
-            );
+            auction.checkBid(_bidder.toBytes32(), testBids[i]);
         }
         assertHeapProperty(auction.getHighestBids());
     }
@@ -157,11 +145,7 @@ contract ThemisAuctionTest is BaseTest {
         vm.warp(block.timestamp + 1 hours);
         salt = genBytes32();
         _bidder.init(testDomains[0], testUsers[0]);
-        auction.checkBid(
-            _bidder.toBytes32(),
-            testBids[0],
-            salt
-        );
+        auction.checkBid(_bidder.toBytes32(), testBids[0]);
 
         vm.warp(block.timestamp + 2 hours);
         // TODO: router setup

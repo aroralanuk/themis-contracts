@@ -107,16 +107,9 @@ contract ThemisController is IThemis {
         _bidder.init(_router.getDomain(), bidder_);
 
         routerContract.dispatchRevealBid(
-            _auction.getDomain(),
-            _auction.getAddress(),
-            abi.encodeCall(
-                ThemisAuction(_auction.getAddress()).checkBid,
-                (
-                    _bidder.toBytes32(),
-                    vaultBalance,
-                    salt_
-                )
-            )
+            bidder_,
+            vaultBalance,
+            salt_
         );
 
         emit BidProvenRemote(
