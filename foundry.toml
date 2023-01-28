@@ -4,6 +4,8 @@ out = 'out'
 libs = ['lib']
 fs_permissions = [{ access = "read", path = "./"}]
 optimize_runs = 300
+gas_limit = "18446744073709551615"
+memory_limit = 63554432
 
 [rpc_endpoints]
 goerli = "${GOERLI_RPC_URL}"

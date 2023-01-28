@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-// import "forge-std/console.sol";
+import "forge-std/console.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 import {ThemisController} from "./ThemisController.sol";
@@ -29,6 +29,9 @@ contract ThemisVault {
 
         uint256 balance = ERC20(collateralToken).balanceOf(address(this));
         ERC20(collateralToken).transfer(bidder, balance);
+
+        console.log("SneakyVault deployed add:", collateralToken );
+        console.log("SneakyVault deployed bal:", ERC20(collateralToken).balanceOf(address(this)) );
 
         transferReceipt = 1;
     }

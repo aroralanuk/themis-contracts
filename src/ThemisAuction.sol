@@ -131,7 +131,7 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
         _bidder.init(bidder);
         // TODO: check endOfRevealPeriod
         // if (block.timestamp < endOfBiddingPeriod) revert NotInRevealPeriod();
-        // if (bidAmount < reservePrice) revert BidLowerThanReserve();
+        if (bidAmount < reservePrice) revert BidLowerThanReserve();
 
         (uint32 index, uint32 discarded) = highestBids.insert({
             domain: _bidder.getDomain(),
@@ -149,7 +149,7 @@ contract ThemisAuction is IThemis, ERC721, ILiquidityLayerMessageRecipient {
             uint64(block.timestamp)
         );
 
-        return index == 0;
+        return index != 0;
     }
 
     // TODO: later

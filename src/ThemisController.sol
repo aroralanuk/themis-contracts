@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-// import "forge-std/console.sol";
+import "forge-std/console.sol";
 
 import {ERC20} from "solmate/tokens/ERC20.sol";
 
@@ -126,6 +126,7 @@ contract ThemisController is IThemis {
         bytes32 salt_,
         bool success_
     ) public {
+        console.log("vault deployed and refunded");
         address vault = getVaultAddress(bidder_, salt_);
 
         // testing for now
@@ -134,11 +135,14 @@ contract ThemisController is IThemis {
         revealedVault[vault] = true;
 
         if (!success_) {
+
             new ThemisVault{salt: salt_}(
                 _auction.toBytes32(),
                 collateralToken,
                 bidder_
             );
+
+
 
             emit BidFailed(
                 block.timestamp,

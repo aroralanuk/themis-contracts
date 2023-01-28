@@ -1,7 +1,3 @@
-[submodule "lib/forge-std"]
-	path = lib/forge-std
-	url = https://github.com/foundry-rs/forge-std
-	branch = v1.1.1
 [submodule "lib/solmate"]
 	path = lib/solmate
 	url = https://github.com/transmissions11/solmate
@@ -13,3 +9,7 @@
 	path = lib/hyperlane-monorepo
 	url = https://github.com/hyperlane-xyz/hyperlane-monorepo
 	branch = main
+[submodule "lib/forge-std"]
+	path = lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
+	branch = v1.3.0

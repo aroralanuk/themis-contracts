@@ -5,10 +5,13 @@ import "forge-std/Script.sol";
 import "forge-std/console.sol";
 
 import {TypeCasts} from "@hyperlane-xyz/core/contracts/libs/TypeCasts.sol";
+import {XAddress} from "src/lib/XAddress.sol";
 import {ThemisController} from "src/ThemisController.sol";
 import {ThemisRouter} from "src/ThemisRouter.sol";
 
 contract ControllerScript is Script {
+    using XAddress for XAddress.Info;
+
     uint256 pk = vm.envUint("DEPLOYER_PRIVATE_KEY");
 
     uint32 MUMBAI_DOMAIN = 80001;
@@ -19,7 +22,7 @@ contract ControllerScript is Script {
     address GOERLI_ROUTER;
 
     address AUCTION;
-    // read auction contract from file
+    XAddress.Info internal _auction;
 
     ThemisController controller;
     ThemisRouter router;
@@ -32,6 +35,7 @@ contract ControllerScript is Script {
         string memory json = vm.readFile(path);
         console.log(AUCTION);
         AUCTION = stdJson.readAddress(json, ".goerliAuction");
+        _auction.init(GOERLI_DOMAIN, AUCTION);
     }
 
     function run() public {
@@ -41,7 +45,8 @@ contract ControllerScript is Script {
         router = new ThemisRouter{salt: TypeCasts.addressToBytes32(AUCTION)}();
         router.initialize(
             MUMBAI_MAILBOX,
-            MUMBAI_DOMAIN
+            MUMBAI_DOMAIN,
+            _auction.toBytes32()
         );
         controller = new ThemisController(address(router));
         controller.connectAuction(5, AUCTION);

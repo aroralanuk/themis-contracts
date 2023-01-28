@@ -28,8 +28,12 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
 
     XAddress.Info internal _address;
 
+    uint256 callbackNonce;
+    mapping (uint256 => bytes) public callbacks;
+
     enum Action {
         REVEAL_BID,
+        CALLBACK,
         DISPATCH,
         LIQUIDITY,
         RESOLVE
@@ -72,16 +76,19 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
         bytes messageBody;
     }
 
-
-
-    function initialize(address mailbox, uint32 domain) public initializer {
+    function initialize(address mailbox, uint32 domain, bytes32 auction) public initializer {
         // Transfer ownership of the contract to `msg.sender`
         __HyperlaneConnectionClient_initialize(mailbox);
         // hyperlane domain for this chain
         DOMAIN = domain;
+        AUCTION_CONTRACT.init(auction);
+
+        if (domain == AUCTION_CONTRACT.getDomain()) {
+            ENDPOINT = AUCTION_CONTRACT.getAddress();
+        }
     }
 
-    function setEndpoint(address endpoint) external initializer {
+    function setEndpoint(address endpoint) public onlyOwner {
         ENDPOINT = endpoint;
     }
 
@@ -114,7 +121,7 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
                 msg.sender,
                 Call({
                     to: AUCTION_CONTRACT.getAddress(),
-                    data: abi.encodeWithSignature("checkBid(bytes32,uint128",_address.toBytes32(), bidAmount)
+                    data: abi.encodeWithSignature("checkBid(bytes32,uint128)",_address.toBytes32(), bidAmount)
                 }),
                 salt
             )
@@ -147,6 +154,25 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
             _destinationDomain,
             msg.sender,
             _target,
+            messageId
+        );
+    }
+
+    function dispatchCallback(uint32 _destinationDomain) external returns (bytes32 messageId) {
+        console.log("dispatchCallback", callbackNonce);
+        bytes memory callback = callbacks[callbackNonce - 1];
+        messageId = _dispatch(
+            _destinationDomain,
+            abi.encode(
+                Action.CALLBACK,
+                callback
+            )
+        );
+
+        emit DispatchedWithCallback(
+            _destinationDomain,
+            msg.sender,
+            ENDPOINT,
             messageId
         );
     }
@@ -219,6 +245,9 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
             );
 
             // call to checkBid()
+            console.log("call to checkBid()", call.to);
+            // console.logBytes32(salt);
+            // console.logBytes(call.data);
             (bool success, bytes memory result) = call.to.call(call.data);
 
             // TODO: onlyTesting
@@ -238,45 +267,38 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
             _address.init(bidder);
 
             if (!success) {
-                ( success, ) = ENDPOINT.call(
-                    abi.encodeWithSignature(
-                        "revealBidCallback(address,uint128,bytes32,bool)",
+                // console.log("endpoint call to controller: ", ENDPOINT);
+                callbacks[callbackNonce]
+                    = abi.encodeWithSelector(
+                        0xf95f91b7,
                         _address.getAddress(),
                         amount,
                         salt,
                         false
-                    )
-                );
+                    );
             } else {
-                ( success, ) = ENDPOINT.call(
-                    abi.encodeWithSignature(
+                callbacks[callbackNonce]
+                    = abi.encodeWithSignature(
                         "revealBidCallback(address,uint128,bytes32,bool)",
                         _address.getAddress(),
                         amount,
                         salt,
                         true
-                    )
-                );
+                    );
             }
-
-            console.logBytes(call.data);
+            callbackNonce++;
+            console.log("After call: ", callbackNonce);
 
             emit ReceivedMessage(_origin, call.to, _message);
-        }
-        if (action == Action.DISPATCH) {
+        } else if (action == Action.CALLBACK) {
 
-            (, address sender, Call memory call) = abi.decode(
+            (, bytes memory callback) = abi.decode(
                 _message,
-                (Action, address, Call)
+                (Action, bytes)
             );
-            (bool success, bytes memory result) = call.to.call(call.data);
+            (, bytes memory result) = ENDPOINT.call(callback);
 
-            require(
-                success,
-                "ERROR: destination call failed"
-            );
-
-            emit HandledCall(sender, call.to, result);
+            emit HandledCall(msg.sender, ENDPOINT, result);
         } else {
             emit HandledCall(TypeCasts.bytes32ToAddress(_sender), address(this), _message);
         }

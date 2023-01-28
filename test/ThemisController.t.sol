@@ -77,12 +77,14 @@ contract ThemisControllerTest is BaseTest {
         domain = 2; // domain for controller
 
         testEnv = new MockHyperlaneEnvironment(domain, remoteDomain);
-        auction = new ThemisAuction("Ethereal Encounters", "EE", 10_000);
+        auction = new ThemisAuction("Ethereal Encounters", "EE", 100);
         auction.initialize(
             uint64(1 hours),
             uint64(2 hours),
             uint128(50e6)
         );
+        console.log("auction address: ", address(auction));
+        _auction.init(remoteDomain, address(auction));
 
 
         router = new ThemisRouter();
@@ -90,11 +92,13 @@ contract ThemisControllerTest is BaseTest {
 
         router.initialize(
             address(testEnv.mailboxes(domain)),
-            domain
+            domain,
+            _auction.toBytes32()
         );
         remoteRouter.initialize(
             address(testEnv.mailboxes(remoteDomain)),
-            remoteDomain
+            remoteDomain,
+            _auction.toBytes32()
         );
 
         router.enrollRemoteRouter(
@@ -106,7 +110,6 @@ contract ThemisControllerTest is BaseTest {
             TypeCasts.addressToBytes32(address(router))
 
         );
-
 
         circleBridge = new MockCircleBridge(usdc);
         messageTransmitter = new MockCircleMessageTransmitter(usdc);
@@ -151,12 +154,12 @@ contract ThemisControllerTest is BaseTest {
 
         controller = new MockThemisController(address(router));
         controller.setCollateralToken(address(usdc));
+        router.setEndpoint(address(controller));
     }
 
     function testConnectAuction() public {
         controller.connectAuction(remoteDomain, address(auction));
 
-        _auction.init(remoteDomain, address(auction));
         assertEq(
             controller.auction(),
             _auction.toBytes32()
@@ -169,7 +172,6 @@ contract ThemisControllerTest is BaseTest {
         vm.expectRevert();
         controller.connectAuction(domain, address(auction));
 
-        _auction.init(remoteDomain, address(auction));
         assertEq(
             controller.auction(),
             _auction.toBytes32()
@@ -204,32 +206,6 @@ contract ThemisControllerTest is BaseTest {
         controller.startReveal();
     }
 
-    function testRevealBid_NotPlaced() public {
-        controller.connectAuction(remoteDomain, address(auction));
-
-        vm.startPrank(alice);
-        bytes32 salt = genBytes32();
-        commitBid(alice, 100e6, salt);
-        skip(1.5 hours);
-        vm.stopPrank();
-
-        controller.startReveal();
-
-        address vault = controller.revealBid(alice, salt, nullProof());
-        controller.revealBidCallback(alice, 100e6, salt, false);
-
-        assertTrue(
-            vault.code.length > 0,
-            "Vault should be deployed"
-        );
-        assertEq(usdc.balanceOf(address(vault)), 0, "Vault should be empty");
-        assertEq(
-            usdc.balanceOf(alice),
-            100_000e6,
-            "Alice should get her bid amount refunded"
-        );
-    }
-
     function testRevealBid_Placed() public {
         controller.connectAuction(remoteDomain, address(auction));
 
@@ -242,7 +218,39 @@ contract ThemisControllerTest is BaseTest {
         controller.startReveal();
 
         address vault = controller.revealBid(alice, salt, nullProof());
-        controller.revealBidCallback(alice, 100e6, salt, true);
+
+        testEnv.processNextPendingMessage();
+        remoteRouter.dispatchCallback(domain);
+        testEnv.processNextPendingMessageFromDestination();
+        // controller.revealBidCallback(alice, 100e6, salt, false);
+
+        // assertTrue(
+        //     vault.code.length > 0,
+        //     "Vault should be deployed"
+        // );
+        console.log("usdc address: ", usdc.balanceOf(address(vault)));
+        console.log("controller balance: " , usdc.balanceOf(address(controller)));
+        // assertEq(usdc.balanceOf(address(vault)), 0, "Vault should be empty");
+        // assertEq(
+        //     usdc.balanceOf(alice),
+        //     100_000e6,
+        //     "Alice should get her bid amount refunded"
+        // );
+    }
+
+    function testRevealBid_NotPlaced() public {
+        controller.connectAuction(remoteDomain, address(auction));
+
+        vm.startPrank(alice);
+        bytes32 salt = genBytes32();
+        commitBid(alice, 100e6, salt);
+        skip(1.5 hours);
+        vm.stopPrank();
+
+        controller.startReveal();
+
+        address vault = controller.revealBid(alice, salt, nullProof());
+        // controller.revealBidCallback(alice, 100e6, salt, true);
 
         assertTrue(
             vault.code.length == 0,

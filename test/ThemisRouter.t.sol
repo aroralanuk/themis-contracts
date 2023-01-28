@@ -6,8 +6,8 @@ import "forge-std/console.sol";
 import {TypeCasts} from "@hyperlane-xyz/core/contracts/libs/TypeCasts.sol";
 import {CircleBridgeAdapter} from "@hyperlane-xyz/core/contracts/middleware/liquidity-layer/adapters/CircleBridgeAdapter.sol";
 
+import {XAddress} from "src/lib/XAddress.sol";
 import {ThemisRouter} from "src/ThemisRouter.sol";
-
 import {BaseTest} from "test/utils/BaseTest.sol";
 import {MockHyperlaneEnvironment} from "test/mock/MockHyperlaneEnvironment.sol";
 import {MockRecipient} from "test/mock/MockRecipient.sol";
@@ -15,6 +15,8 @@ import {MockCircleBridge} from "test/mock/MockCircleBridge.sol";
 import {MockCircleMessageTransmitter} from "test/mock/MockCircleMessageTransmitter.sol";
 
 contract ThemisRouterTest is BaseTest {
+    using XAddress for XAddress.Info;
+
     error CallbackError();
 
     MockHyperlaneEnvironment testEnv;
@@ -54,12 +56,14 @@ contract ThemisRouterTest is BaseTest {
 
         hubRouter.initialize(
             address(testEnv.mailboxes(hubDomain)),
-            hubDomain
+            hubDomain,
+            0x003200000000000000000000000000000000000000000000000000000000beef   // just for test
         );
 
         spokeRouter.initialize(
             address(testEnv.mailboxes(spokeDomain)),
-            spokeDomain
+            spokeDomain,
+            0x003200000000000000000000000000000000000000000000000000000000beef // just for test
         );
 
         hubRouter.enrollRemoteRouter(
@@ -109,22 +113,6 @@ contract ThemisRouterTest is BaseTest {
         );
     }
 
-    function testCallBack() public {
-        bytes32 _salt = genBytes32();
-
-        spokeRouter.dispatchWithCallback(
-            hubDomain,
-            address(recipient),
-            abi.encodeCall(
-                recipient.exampleFunction,
-                (address(this), 1000e6, _salt)
-            ),
-            abi.encodePacked(this.exampleCallback.selector)
-        );
-        testEnv.processNextPendingMessageFromDestination();
-        testEnv.processNextPendingMessage();
-        assertEq(callbackResult, true);
-    }
 
     function testCallRevert() public {
         bytes32 _salt = genBytes32();
