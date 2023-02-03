@@ -1,146 +1,140 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
+// import "forge-std/console.sol";
 
 library Bids {
-    struct Node {
-        uint32 domain;
-        address bidderAddress;
-        uint128 bidAmount;
-        uint64 bidTimestamp;
+    error EmptyList();
+    error InvalidCapacity();
+    error InvalidElement();
+    error InvalidGreaterKey();
+    error InvalidLesserKey();
+    error InvalidNextKey();
+    error InvalidPreviousKey();
+    error NotEmptyList();
+
+    struct Element {
+        address bidder;
+        uint128 amount;
+        uint64 blockNumber;
+
+        uint32 prevKey;
+        uint32 nextKey;
     }
 
-    struct Heap {
-        uint32[] array;
-        mapping(uint32 => Node) index; // 1-indexed
+    struct List {
+        uint32 head;
+        uint32 tail;
+        mapping(uint32 => Element) elements; // 1-indexed
         uint32 totalBids;
+        uint32 capacity;
     }
 
-    error BidTooLow();
-
-    function initialize(
-        Heap storage self,
-        uint32 capacity
-        ) internal {
-        self.array = new uint32[](capacity);
+    function init(List storage self, uint32 capacity) internal {
+        if (capacity == 0) revert InvalidCapacity();
+        self.capacity = capacity;
     }
 
     function insert(
-        Heap storage self,
-        uint32 domain,
-        address bidderAddress,
-        uint128 bidAmount,
-        uint64 bidTimestamp
-    ) internal returns (uint32,uint32) {
-        if (self.totalBids >= self.array.length
-            && bidAmount < self.index[self.array[0]].bidAmount) {
+        List storage self,
+        Element memory element
+    ) internal returns (uint32, uint32) {
+        uint32 lesserKey = element.prevKey;
+        uint32 greaterKey = element.nextKey;
+        uint32 key;
+        // list is empty
+        if (lesserKey == 0 && greaterKey == 0) {
+            if (self.totalBids > 0) revert NotEmptyList();
+            key = self.totalBids + 1;
+            self.elements[key] = element;
 
-            return (0,0);
-        } else if (self.totalBids >= self.array.length) {
-            uint32 discarded = self.array[0];
-            self.totalBids++;
-            self.array[0] = self.totalBids;
-            self.index[self.totalBids] = Node(
-                domain,
-                bidderAddress,
-                bidAmount,
-                bidTimestamp
-            );
-            heapify(self, 0);
-            return (self.totalBids, discarded);
+            element.prevKey = 0;
+            element.nextKey = 0;
+
+            self.head = key;
+            self.tail = key;
+        } else if (lesserKey == 0){
+            Element memory greaterElement = self.elements[greaterKey];
+            if (!lt(element, greaterElement)) revert InvalidGreaterKey();
+            if (greaterElement.prevKey != 0) revert InvalidPreviousKey();
+
+            key = self.totalBids + 1;
+            element.nextKey = greaterKey;
+            element.prevKey = 0;
+            self.elements[key] = element;
+
+            self.elements[greaterKey].prevKey = key;
+            self.head = key;
+        } else if (greaterKey == 0){
+            Element memory lesserElement = self.elements[lesserKey];
+            if (!lt(lesserElement, element)) revert InvalidLesserKey();
+            if (lesserElement.nextKey != 0) revert InvalidNextKey();
+
+            key = self.totalBids + 1;
+            element.prevKey = lesserKey;
+            element.nextKey = 0;
+            self.elements[key] = element;
+
+            self.elements[lesserKey].nextKey = key;
+            self.tail = key;
         } else {
-            self.totalBids++;
-            self.array[self.totalBids] = self.totalBids;
-            self.index[self.totalBids] = Node(
-                domain,
-                bidderAddress,
-                bidAmount,
-                bidTimestamp
-            );
+            Element memory lesserElement = self.elements[lesserKey];
+            Element memory greaterElement = self.elements[greaterKey];
 
-            uint32 i = self.totalBids - 1;
-            while (i > 0 && getBid(self, i).bidAmount
-                                < getBid(self, (i - 1) / 2).bidAmount) {
-                swap(self, i, (i - 1) / 2);
-                i = (i - 1) / 2;
-            }
-            return (self.totalBids, 0);
+            if (!lt(lesserElement, element)) revert InvalidLesserKey();
+            if (!lt(element, greaterElement)) revert InvalidGreaterKey();
+            if (lesserElement.nextKey != greaterKey) revert InvalidNextKey();
+
+            key = self.totalBids + 1;
+            element.prevKey = lesserKey;
+            element.nextKey = greaterKey;
+            self.elements[key] = element;
+
+            self.elements[lesserKey].nextKey = key;
+            self.elements[greaterKey].prevKey = key;
         }
-
-
+        self.totalBids += 1;
+        if (self.totalBids > self.capacity) {
+            return (0, pop(self));
+        }
+        return (key, 0);
     }
 
-    function heapify(
-        Heap storage self,
-        uint32 i
-    ) internal {
-        uint32 l = 2 * i + 1;
-        uint32 r = 2 * i + 2;
-        uint32 smallest = i;
-        if (
-            l < self.totalBids &&
-            getBid(self, l).bidAmount < getBid(self, smallest).bidAmount
-        ) {
-            smallest = l;
-        }
-        if (
-            r < self.totalBids &&
-            getBid(self, r).bidAmount < getBid(self, smallest).bidAmount
-        ) {
-            smallest = r;
+    function pop(List storage self) internal returns (uint32) {
+        if (self.totalBids == 0) revert EmptyList();
+
+        uint32 key = self.head;
+        Element memory element = self.elements[key];
+        if (element.bidder == address(0)) revert InvalidElement();
+
+        if (self.totalBids == 1) {
+            self.head = 0;
+            self.tail = 0;
+        } else {
+            self.head = element.nextKey;
+            self.elements[element.nextKey].prevKey = 0;
         }
 
-        if (smallest != i) {
-            swap(self, i, smallest);
-            heapify(self, smallest);
-        }
+        self.totalBids -= 1;
+        return key;
     }
 
-    function getBid(
-        Heap storage self,
-        uint32 bidIndex
-    ) internal view returns (Node memory) {
-        return self.index[self.array[bidIndex]];
-    }
-
-    function getAllBids(
-        Heap storage self
-    ) internal view returns (Node[] memory) {
-        Node[] memory bids = new Node[](self.totalBids);
+    function getAllBids(List storage self) internal view returns (Element[] memory) {
+        Element[] memory elements = new Element[](self.totalBids);
+        uint32 key = self.tail;
         for (uint32 i = 0; i < self.totalBids; i++) {
-            bids[i] = self.index[self.array[i]];
+            elements[i] = self.elements[key];
+            key = self.elements[key].prevKey;
         }
-        return bids;
+        return elements;
     }
 
-    function contains(
-        Heap storage self,
-        uint32 domain,
-        address bidderAddress
-    ) internal view returns (bool) {
-        return getBidPosition(self, domain, bidderAddress) < self.totalBids;
-    }
-
-    function getBidPosition(
-        Heap storage self,
-        uint32 domain,
-        address bidderAddress
-    ) internal view returns (uint32) {
-        for (uint32 i = 0; i < self.totalBids; i++) {
-            if (self.index[self.array[i]].domain == domain
-                && self.index[self.array[i]].bidderAddress == bidderAddress) {
-                return i;
-            }
-        }
-        return self.totalBids;
-    }
-
-    function swap(
-        Heap storage self,
-        uint32 i,
-        uint32 j
-    ) internal {
-        (self.array[i], self.array[j])
-            = (self.array[j], self.array[i]);
+    function lt(
+        Element memory element1,
+        Element memory element2
+    ) internal pure returns (bool) {
+        return element1.amount < element2.amount ||
+        (element1.amount == element2.amount &&
+            element1.blockNumber >= element2.blockNumber);
     }
 }
