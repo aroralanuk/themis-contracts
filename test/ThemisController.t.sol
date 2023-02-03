@@ -243,23 +243,27 @@ contract ThemisControllerTest is BaseTest {
 
         vm.startPrank(alice);
         bytes32 salt = genBytes32();
-        commitBid(alice, 100e6, salt);
+        commitBid(alice, 10e6, salt);
         skip(1.5 hours);
         vm.stopPrank();
 
         controller.startReveal();
 
         address vault = controller.revealBid(alice, salt, nullProof());
-        // controller.revealBidCallback(alice, 100e6, salt, true);
+        vm.expectRevert();
+        testEnv.processNextPendingMessage();
+
+
+        testEnv.processNextPendingMessageFromDestination();
 
         assertTrue(
             vault.code.length == 0,
             "Vault should not be deployed"
         );
-        assertEq(usdc.balanceOf(address(vault)), 100e6, "Vault should be funded");
+        assertEq(usdc.balanceOf(address(vault)), 10e6, "Vault should be funded");
         assertEq(
             usdc.balanceOf(alice),
-            99_900e6,
+            99_990e6,
             "Alice should not get her bid amount refunded"
         );
     }

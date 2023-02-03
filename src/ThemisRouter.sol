@@ -141,6 +141,7 @@ contract ThemisRouter is Router, ILiquidityLayerRouter  {
         bytes calldata data,
         bytes calldata callback
     ) external returns (bytes32 messageId) {
+        console.log("dispatchWithCallback", callbackNonce);
         messageId = _dispatch(
             _destinationDomain,
             abi.encode(
