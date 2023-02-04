@@ -42,7 +42,7 @@ contract ThemisAuction is IThemis, ERC721 {
     /// @notice reserve price for the mint
     uint128 public reservePrice;
     /// @notice collateral token specified for bids
-    address collateralToken;
+    address public collateralToken;
 
     /// @notice A mapping storing whether or not the bid for a `ThemisVault` was revealed.
     mapping(address => bool) public revealedVaults;
@@ -136,7 +136,6 @@ contract ThemisAuction is IThemis, ERC721 {
         uint256 vaultBalance = ERC20(collateralToken).balanceOf(vault);
 
         if (vaultBalance < reservePrice) {
-            console.log("vaultBalance < reservePrice");
             unlockVault(bidder, salt);
             // revert BidLowerThanReserve();
             return;
@@ -186,16 +185,14 @@ contract ThemisAuction is IThemis, ERC721 {
 
         if (bids.length == 1) {
             Bids.Element[] memory temp = new Bids.Element[](2);
-            for (uint i=0;i<2;i++) {
-                temp[i] = bids[0];
-            }
-
+            temp[0] = bids[0];
+            temp[1] = bids[0];
             bids = temp;
         }
 
         for (uint i = 0; i < bids.length - 1; i++) {
-            new ThemisVault{salt: bytes32(i)}(address(this), collateralToken, bids[i].bidder);
-
+            amountOwed[bids[i].bidder] = bids[i + 1].amount;
+            unlockVault(bids[i].bidder, bids[i].salt);
             _mint(bids[i].bidder, i);
         }
 

@@ -31,7 +31,6 @@ contract ThemisVault {
         ERC20(collateralToken).transfer(bidder, balance);
 
         console.log("ThemisVault deployed add:", collateralToken );
-        console.log("ThemisVault deployed bal:", ERC20(collateralToken).balanceOf(address(this)) );
 
         transferReceipt = 1;
     }
