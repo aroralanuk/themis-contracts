@@ -22,17 +22,6 @@ jobs:
         with:
           version: nightly
 
-      - name: Set Node.js 16.x
-        uses: actions/setup-node@v3
-        with:
-          node-version: 16.x
-
-      - name: Hyperlane dependencies setup
-        uses: borales/actions-yarn@v4
-        with:
-          cmd: install
-          dir: 'lib/hyperlane-monorepo'
-
       - name: Run Forge build
         run: |
           forge build --sizes
@@ -43,6 +32,4 @@ jobs:
           forge test -vvv
         id: test
         env:
-          MOONBASE_RPC_URL: ${{ secrets.MOONBASE_RPC_URL }}
-          MUMBAI_RPC_URL: ${{ secrets.MUMBAI_RPC_URL }}
           GOERLI_RPC_URL: ${{ secrets.GOERLI_RPC_URL }}
