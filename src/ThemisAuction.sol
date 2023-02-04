@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-// import "forge-std/console.sol";
+import "forge-std/console.sol";
 
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {ERC721} from "solmate/tokens/ERC721.sol";
 
 import {Bids} from "src/lib/Bids.sol";
+import {LibBalanceProof} from "src/lib/LibBalanceProof.sol";
 import {IThemis} from "src/IThemis.sol";
 import {ThemisVault} from "src/ThemisVault.sol";
 
@@ -45,6 +46,8 @@ contract ThemisAuction is IThemis, ERC721 {
 
     /// @notice A mapping storing whether or not the bid for a `ThemisVault` was revealed.
     mapping(address => bool) public revealedVaults;
+    /// @notice A mapping storing the amount of collateral allocated for the the actual bid
+    mapping (address => uint128) public amountOwed;
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
@@ -103,7 +106,7 @@ contract ThemisAuction is IThemis, ERC721 {
     ///        of bids. This is used to efficiently find the element in the DLL
     /// @param justGreaterBidIndex The index of the bid just greater in the DLL
     ///        of bids. This is used to efficiently find the element in the DLL
-    /// @param proof The proof that the vault corresponding to this bid was
+    /// param proof The proof that the vault corresponding to this bid was
     ///        sufficiently collateralized before any bids were revealed. This
     ///        may be null if this is the first bid revealed for the auction.
     function revealBid(
@@ -111,25 +114,37 @@ contract ThemisAuction is IThemis, ERC721 {
         bytes32 salt,
         uint32 justLesserBidIndex,
         uint32 justGreaterBidIndex,
-        CollateralizationProof calldata proof
+        CollateralizationProof calldata /* proof */
     ) external {
         if (
             block.timestamp < endOfBiddingPeriod ||
             block.timestamp >  endOfRevealPeriod
-        ) revert NotInRevealPeriod();
+        ) {
+            unlockVault(bidder, salt);
+            return;
+        }
 
         address vault = getVaultAddress(address(this), collateralToken, bidder, salt);
 
-        if (revealedVaults[vault]) revert BidAlreadyRevealed();
+        if (revealedVaults[vault]) {
+            unlockVault(bidder, salt);
+            return;
+        }
         revealedVaults[vault] = true;
 
         // TODO: JUST FOR TESTING
         uint256 vaultBalance = ERC20(collateralToken).balanceOf(vault);
 
-        if (vaultBalance < reservePrice) revert BidLowerThanReserve();
+        if (vaultBalance < reservePrice) {
+            console.log("vaultBalance < reservePrice");
+            unlockVault(bidder, salt);
+            // revert BidLowerThanReserve();
+            return;
+        }
 
         Bids.Element memory bidToBeInserted = Bids.Element({
             bidder: bidder,
+            salt: salt,
             amount: uint128(vaultBalance),
             blockNumber: uint64(block.timestamp),
 
@@ -139,13 +154,22 @@ contract ThemisAuction is IThemis, ERC721 {
 
         (uint32 index, uint32 discarded) = highestBids.insert(bidToBeInserted);
 
+        if (discarded != 0) {
+            unlockVault(bidder, salt);
+            Bids.Element memory discardedBid = highestBids.getBid(discarded);
+
+            emit BidDiscarded(
+                discardedBid.bidder,
+                discardedBid.amount,
+                discardedBid.blockNumber
+            );
+        }
+
+        Bids.Element memory inserted = highestBids.getBid(index);
         emit BidRevealed(
-            discarded,
-            index,
-            0,
-            address(this),
-            uint128(vaultBalance),
-            uint64(block.timestamp)
+            inserted.bidder,
+            inserted.amount,
+            inserted.blockNumber
         );
     }
 
@@ -178,8 +202,18 @@ contract ThemisAuction is IThemis, ERC721 {
         emit AuctionEnded(block.timestamp);
     }
 
-    function bidAmounts(address bidder) external view returns (uint128) {
-        return 0;
+    function bidAmounts(address vault) external view returns (uint128) {
+        return amountOwed[vault];
+    }
+
+    function setCollateralToken(address collateralToken_) external onlyOwner {
+        collateralToken = collateralToken_;
+    }
+
+    function unlockVault(address bidder, bytes32 salt) public {
+        address vault = getVaultAddress(address(this), collateralToken, bidder, salt);
+        if (vault.code.length == 0)
+            new ThemisVault{salt: salt}(address(this), collateralToken, bidder);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -207,13 +241,13 @@ contract ThemisAuction is IThemis, ERC721 {
     /// @notice Computes the `CREATE2` address of the `ThemisVault` with the given
     ///         parameters. Note that the vault contract may not be deployed yet.
     /// @param tokenContract The address of the ERC721 contract for the asset auctioned.
-    /// @param collateralToken The address of the ERC20 contract for the collateral token.
+    /// @param collateralToken_ The address of the ERC20 contract for the collateral token.
     /// @param bidder The address of the bidder.
     /// @param salt The random input used to obfuscate the commitment.
     /// @return vault The address of the `ThemisVault`.
     function getVaultAddress(
         address tokenContract,
-        address collateralToken,
+        address collateralToken_,
         address bidder,
         bytes32 salt
     )
@@ -230,11 +264,42 @@ contract ThemisAuction is IThemis, ERC721 {
                 type(ThemisVault).creationCode,
                 abi.encode(
                     tokenContract,
-                    collateralToken,
+                    collateralToken_,
                     bidder
                 )
             ))
         )))));
+    }
+
+    /// @dev Gets the balance of the given account at a past block by
+    ///      traversing the given Merkle proof for the state trie. Wraps
+    ///      LibBalanceProof.getProvenAccountBalance so that this function
+    ///      can be overridden for testing.
+    /// @param proof A Merkle proof for the given account's balance in
+    ///        the state trie of a past block.
+    /// @param blockHeaderRLP The RLP-encoded block header for the past
+    ///        block for which the balance is being queried.
+    /// @param blockHash The expected blockhash. Should be equal to the
+    ///        Keccak256 hash of `blockHeaderRLP`.
+    /// @param account The account whose past balance is being queried.
+    /// @return accountBalance The proven past balance of the account.
+    function _getProvenAccountBalance(
+        bytes[] memory proof,
+        bytes memory blockHeaderRLP,
+        bytes32 blockHash,
+        address account
+    )
+        internal
+        virtual
+        view
+        returns (uint256 accountBalance)
+    {
+        return LibBalanceProof.getProvenAccountBalance(
+            proof,
+            blockHeaderRLP,
+            blockHash,
+            account
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -40,12 +40,9 @@ interface IThemis {
     );
 
     event BidRevealed(
-        uint32 indexed discardedIndex,
-        uint32 indexed bidIndex,
-        uint32 domain,
-        address bidderAddress,
+        address bidder,
         uint128 amount,
-        uint64 timestamp
+        uint64 blockNumber
     );
 
     event BidFailed(
@@ -88,8 +85,9 @@ interface IThemis {
         uint128 bidAmount
     );
 
-    event Reserved (
-        address indexed to,
-        uint256 indexed id
+    event BidDiscarded (
+        address indexed bidder,
+        uint128 indexed amount,
+        uint64 indexed blockNumber
     );
 }

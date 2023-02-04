@@ -14,7 +14,7 @@ contract ThemisVault {
     uint32 transferReceipt;
 
     constructor(
-        address tokenContract,
+        address /* tokenContract */,
         address collateralToken,
         address bidder
     ) {
@@ -30,8 +30,8 @@ contract ThemisVault {
         uint256 balance = ERC20(collateralToken).balanceOf(address(this));
         ERC20(collateralToken).transfer(bidder, balance);
 
-        console.log("SneakyVault deployed add:", collateralToken );
-        console.log("SneakyVault deployed bal:", ERC20(collateralToken).balanceOf(address(this)) );
+        console.log("ThemisVault deployed add:", collateralToken );
+        console.log("ThemisVault deployed bal:", ERC20(collateralToken).balanceOf(address(this)) );
 
         transferReceipt = 1;
     }

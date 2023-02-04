@@ -15,6 +15,7 @@ library Bids {
 
     struct Element {
         address bidder;
+        bytes32 salt;
         uint128 amount;
         uint64 blockNumber;
 
@@ -127,6 +128,10 @@ library Bids {
             key = self.elements[key].prevKey;
         }
         return elements;
+    }
+
+    function getBid(List storage self, uint32 key) internal view returns (Element memory) {
+        return self.elements[key];
     }
 
     function lt(
