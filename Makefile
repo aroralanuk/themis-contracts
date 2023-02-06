@@ -34,11 +34,3 @@ end-bid-period :; cast send ${AUCTION} "endBidPeriod()" --gas-price 20000000000 
 set-usdc :; cast send ${CONTROLLER} "setCollateralToken(address)" --gas-price 100000000000 0xE097d6B3100777DC31B34dC2c58fB524C2e76921 --rpc-url ${MUMBAI_RPC_URL} --private-key ${DEPLOYER_PRIVATE_KEY}
 
 
-# deploy auction
-# deploy Controller
-# enroll router goerli and mumbai
-# set usdc
-# init auction
-# make a bid
-# end auction
-# reveal bid

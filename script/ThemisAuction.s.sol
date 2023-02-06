@@ -9,20 +9,21 @@ contract AuctionScript is Script {
 
     uint256 pk = vm.envUint("DEPLOYER_PRIVATE_KEY");
 
-    address GOERLI_MAILBOX = 0xCC737a94FecaeC165AbCf12dED095BB13F037685;
-    uint32 GOERLI_DOMAIN = 5;
-    address GOERLI_ROUTER;
-
-    uint32 MUMBAI_DOMAIN = 80001;
-    address MUMBAI_ROUTER;
+    address GOERLI_USDC = 0x07865c6E87B9F70255377e024ace6630C1Eaa37F;
 
     ThemisAuction auction;
-
 
     function run() public {
         vm.startBroadcast(pk);
 
         auction = new ThemisAuction("Ethereal Encounters", "EE", 100);
+        auction.setCollateralToken(GOERLI_USDC);
+
+        auction.initialize(
+            uint64(1 hours),
+            uint64(2 hours),
+            uint128(5e6)
+        );
 
         vm.stopBroadcast();
     }

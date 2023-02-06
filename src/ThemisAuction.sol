@@ -112,8 +112,8 @@ contract ThemisAuction is IThemis, ERC721 {
     function revealBid(
         address bidder,
         bytes32 salt,
-        uint32 justLesserBidIndex,
         uint32 justGreaterBidIndex,
+        uint32 justLesserBidIndex,
         CollateralizationProof calldata /* proof */
     ) external {
         if (
@@ -172,7 +172,8 @@ contract ThemisAuction is IThemis, ERC721 {
         );
     }
 
-
+    /// @notice Ends an active auction. Can only end an auction if the bid reveal
+    ///         phase is over.
     function endAuction() external {
         if (block.timestamp < endOfRevealPeriod) revert AuctionNotOver();
 

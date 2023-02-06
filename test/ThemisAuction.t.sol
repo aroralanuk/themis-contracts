@@ -178,7 +178,7 @@ contract ThemisAuctionTest is BaseTest {
         vm.warp(block.timestamp + 90 minutes);
 
         for (uint256 i = 0; i < 4; i++) {
-            auction.revealBid(testUsers[i], testSalts[i], 0, testGreaterKey[i], nullProof());
+            auction.revealBid(testUsers[i], testSalts[i], testGreaterKey[i], 0, nullProof());
         }
 
         Bids.Element[] memory bids = auction.getHighestBids();
@@ -218,13 +218,13 @@ contract ThemisAuctionTest is BaseTest {
         vm.warp(block.timestamp + 90 minutes);
 
         for (uint256 i = 0; i < 4; i++) {
-            auction.revealBid(testUsers[i], testSalts[i], 0, testGreaterKey[i], nullProof());
+            auction.revealBid(testUsers[i], testSalts[i], testGreaterKey[i], 0, nullProof());
         }
 
         // new bits - testing to see if ellie's bid gets reverted
         vm.expectEmit(true, true, false, false);
         emit BidDiscarded(ellie, 80e6, 26);
-        auction.revealBid(ellie, testSalts[3], 0, 4, nullProof());
+        auction.revealBid(ellie, testSalts[3], 4, 0, nullProof());
 
         require(vault.code.length > 0, "Vault should be deployed");
         require(usdc.balanceOf(vault) == 0, "User should get refunded");
@@ -267,13 +267,13 @@ contract ThemisAuctionTest is BaseTest {
         vm.warp(block.timestamp + 90 minutes);
 
         for (uint256 i = 0; i < 4; i++) {
-            auction.revealBid(testUsers[i], testSalts[i], 0, testGreaterKey[i], nullProof());
+            auction.revealBid(testUsers[i], testSalts[i], testGreaterKey[i], 0, nullProof());
         }
 
         // new bits - testing to see if devin's bid gets pushed out
         vm.expectEmit(true, true, false, false);
         emit BidDiscarded(devin, 90e6, 21);
-        auction.revealBid(ellie, testSalts[3], 1, 0, nullProof());
+        auction.revealBid(ellie, testSalts[3], 0, 1, nullProof());
 
         require(vault.code.length == 0, "Vault shouldn be deployed");
         require(usdc.balanceOf(vault) != 0, "Devin shouldn get refunded");
