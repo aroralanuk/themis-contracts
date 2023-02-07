@@ -29,6 +29,8 @@ verify-contract :; forge verify-contract 0x4390c57290d6432801fa973530377973c647c
 # More commands
 init-auction :; cast send ${AUCTION} "initialize(uint64,uint64,uint128)" 100 86400 0 --gas-price 20000000000 --rpc-url ${GOERLI_RPC_URL} --private-key ${DEPLOYER_PRIVATE_KEY}
 
+end-auction :; cast send ${AUCTION} "endAuction()" --gas-price 20000000000 --rpc-url ${GOERLI_RPC_URL} --private-key ${DEPLOYER_PRIVATE_KEY}
+
 end-bid-period :; cast send ${AUCTION} "endBidPeriod()" --gas-price 20000000000 --rpc-url ${GOERLI_RPC_URL} --private-key ${DEPLOYER_PRIVATE_KEY}
 
 set-usdc :; cast send ${CONTROLLER} "setCollateralToken(address)" --gas-price 100000000000 0xE097d6B3100777DC31B34dC2c58fB524C2e76921 --rpc-url ${MUMBAI_RPC_URL} --private-key ${DEPLOYER_PRIVATE_KEY}

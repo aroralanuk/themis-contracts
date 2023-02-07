@@ -61,6 +61,14 @@ contract ThemisAuction is IThemis, ERC721 {
         collectionOwner = msg.sender;
         MAX_SUPPLY = maxSupply_;
         collectionOwner = msg.sender;
+
+        emit CollectionCreated(
+            address(this),
+            msg.sender,
+            name_,
+            symbol_,
+            maxSupply_
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -158,17 +166,19 @@ contract ThemisAuction is IThemis, ERC721 {
             Bids.Element memory discardedBid = highestBids.getBid(discarded);
 
             emit BidDiscarded(
-                discardedBid.bidder,
-                discardedBid.amount,
-                discardedBid.blockNumber
+                discarded,                  // index
+                discardedBid.bidder,        // bidder
+                discardedBid.amount,        // amount
+                discardedBid.blockNumber    // blockNumber
             );
         }
 
         Bids.Element memory inserted = highestBids.getBid(index);
         emit BidRevealed(
-            inserted.bidder,
-            inserted.amount,
-            inserted.blockNumber
+            index,                          // index
+            inserted.bidder,                // bidder
+            inserted.amount,                // amount
+            inserted.blockNumber            // blockNumber
         );
     }
 
@@ -178,24 +188,38 @@ contract ThemisAuction is IThemis, ERC721 {
         if (block.timestamp < endOfRevealPeriod) revert AuctionNotOver();
 
         Bids.Element[] memory bids = highestBids.getAllBids();
+        uint32 n = uint32(bids.length);
 
-        if (bids.length == 0) {
+        if (n == 0) {
             emit AuctionEnded(block.timestamp);
             return;
         }
 
-        if (bids.length == 1) {
-            Bids.Element[] memory temp = new Bids.Element[](2);
-            temp[0] = bids[0];
-            temp[1] = bids[0];
-            bids = temp;
+        // if (n <= MAX_SUPPLY ) {
+        //     Bids.Element[] memory temp = new Bids.Element[](n + 1);
+        //     for(uint32 i=0; i < n; i++) {
+        //         temp[i] = bids[i];
+        //     }
+        //     temp[n] = bids[n-1];
+        //     bids = temp;
+        // }
+
+        if (n > MAX_SUPPLY) {
+            // second price
+            for (uint i = 0; i < n - 1; i++) {
+                amountOwed[bids[i].bidder] = bids[i + 1].amount;
+                unlockVault(bids[i].bidder, bids[i].salt);
+                _mint(bids[i].bidder, i);
+            }
+        } else {
+            // first price
+            for (uint i = 0; i < n; i++) {
+                amountOwed[bids[i].bidder] = bids[i].amount;
+                unlockVault(bids[i].bidder, bids[i].salt);
+                _mint(bids[i].bidder, i);
+            }
         }
 
-        for (uint i = 0; i < bids.length - 1; i++) {
-            amountOwed[bids[i].bidder] = bids[i + 1].amount;
-            unlockVault(bids[i].bidder, bids[i].salt);
-            _mint(bids[i].bidder, i);
-        }
 
         emit AuctionEnded(block.timestamp);
     }

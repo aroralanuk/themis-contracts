@@ -186,9 +186,10 @@ contract ThemisAuctionTest is BaseTest {
     }
 
     event BidDiscarded (
+        uint32 indexed bidderIndex,
         address indexed bidder,
-        uint128 indexed amount,
-        uint64 indexed blockNumber
+        uint128 amount,
+        uint64 blockNumber
     );
 
     function testRevealBid_Full_LowBid() public {
@@ -223,7 +224,7 @@ contract ThemisAuctionTest is BaseTest {
 
         // new bits - testing to see if ellie's bid gets reverted
         vm.expectEmit(true, true, false, false);
-        emit BidDiscarded(ellie, 80e6, 26);
+        emit BidDiscarded(5, ellie, 80e6, 26);
         auction.revealBid(ellie, testSalts[3], 4, 0, nullProof());
 
         require(vault.code.length > 0, "Vault should be deployed");
@@ -272,7 +273,7 @@ contract ThemisAuctionTest is BaseTest {
 
         // new bits - testing to see if devin's bid gets pushed out
         vm.expectEmit(true, true, false, false);
-        emit BidDiscarded(devin, 90e6, 21);
+        emit BidDiscarded(4, devin, 90e6, 21);
         auction.revealBid(ellie, testSalts[3], 0, 1, nullProof());
 
         require(vault.code.length == 0, "Vault shouldn be deployed");
@@ -292,7 +293,7 @@ contract ThemisAuctionTest is BaseTest {
         vm.startPrank(alice);
         uint128 bidVal = 100 * USDC;
         bytes32 salt = genBytes32();
-        address vault = commitBid(alice, address(usdc), bidVal, salt);
+        commitBid(alice, address(usdc), bidVal, salt);
         vm.warp(block.timestamp + 90 minutes);
 
         auction.revealBid(alice, salt, 0, 0, nullProof());
@@ -300,7 +301,7 @@ contract ThemisAuctionTest is BaseTest {
         // TODO: what if the caller has a bidAmounts function
         address coll = auction.collateralToken();
         vm.expectRevert();
-        ThemisVault wannabeVault = new ThemisVault{salt: salt}(address(auction), coll, alice);
+        new ThemisVault{salt: salt}(address(auction), coll, alice);
     }
 
     function testEndAuction_Fail_Premature() public {
@@ -331,7 +332,7 @@ contract ThemisAuctionTest is BaseTest {
         assertEq(auction.getHighestBids().length, 0);
     }
 
-    function testEndAuction_OneBid() public {
+    function testEndAuction_LessBidsThanSupply() public {
         auction.initialize(
             uint64(1 hours),
             uint64(2 hours),
@@ -341,18 +342,71 @@ contract ThemisAuctionTest is BaseTest {
         vm.startPrank(alice);
         uint128 bidVal = 100 * USDC;
         bytes32 salt = genBytes32();
-        address vault = commitBid(alice, address(usdc), bidVal, salt);
+        commitBid(alice, address(usdc), bidVal, salt);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        uint128 bidVal2 = 120 * USDC;
+        bytes32 salt2 = genBytes32();
+        commitBid(bob, address(usdc), bidVal2, salt2);
+        vm.stopPrank();
+
         vm.warp(block.timestamp + 90 minutes);
 
         auction.revealBid(alice, salt, 0, 0, nullProof());
+        auction.revealBid(bob, salt2, 0, 1, nullProof());
 
-        assertEq(auction.getHighestBids().length, 1);
+        assertEq(auction.getHighestBids().length, 2);
 
         vm.warp(block.timestamp + 2 hours);
         auction.endAuction();
 
-        assertEq(usdc.balanceOf(address(auction)), bidVal);
+
+        assertEq(usdc.balanceOf(address(auction)), bidVal + bidVal2);
+        assertEq(auction.ownerOf(0), bob);
+        assertEq(auction.ownerOf(1), alice);
+    }
+
+    function testEndAuction_MoreBidsThanSupply() public {
+        auction.initialize(
+            uint64(1 hours),
+            uint64(2 hours),
+            uint128(50 * USDC)
+        );
+
+        BidParams[] memory expected = new BidParams[](4);
+
+        for (uint256 i = 0; i < 4; i++) {
+            vm.startPrank(testUsers[i]);
+            uint128 bidVal = testBids[i];
+            commitBid(testUsers[i], address(usdc), bidVal, testSalts[i]);
+
+            expected[i] = BidParams({
+                bidder: testUsers[i],
+                amount: testBids[i],
+                blockNumber: uint64(block.number)
+            });
+
+            vm.stopPrank();
+            vm.warp(block.timestamp + 60 seconds);
+            vm.roll(block.number + 5);
+        }
+        vm.warp(block.timestamp + 90 minutes);
+
+        for (uint256 i = 0; i < 4; i++) {
+            auction.revealBid(testUsers[i], testSalts[i], testGreaterKey[i], 0, nullProof());
+        }
+
+        Bids.Element[] memory bids = auction.getHighestBids();
+        assertAllBids(bids, expected);
+
+        vm.warp(block.timestamp + 90 minutes);
+        auction.endAuction();
+
+        assertEq(usdc.balanceOf(address(auction)), 360e6);
         assertEq(auction.ownerOf(0), alice);
+        assertEq(auction.ownerOf(1), bob);
+        assertEq(auction.ownerOf(2), charlie);
     }
 
     /*//////////////////////////////////////////////////////////////

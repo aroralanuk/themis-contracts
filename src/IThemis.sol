@@ -23,6 +23,14 @@ interface IThemis {
     error NotYetRevealBlock();
     error VaultAlreadyDeployed();
 
+    event CollectionCreated(
+        address indexed collection,
+        address indexed owner,
+        string name,
+        string symbol,
+        uint256 maxSupply
+    );
+
     event AuctionInitialized(
         address indexed auction,
         address indexed owner,
@@ -40,7 +48,8 @@ interface IThemis {
     );
 
     event BidRevealed(
-        address bidder,
+        uint32 indexed bidderIndex,
+        address indexed bidder,
         uint128 amount,
         uint64 blockNumber
     );
@@ -86,8 +95,9 @@ interface IThemis {
     );
 
     event BidDiscarded (
+        uint32 indexed bidderIndex,
         address indexed bidder,
-        uint128 indexed amount,
-        uint64 indexed blockNumber
+        uint128 amount,
+        uint64 blockNumber
     );
 }

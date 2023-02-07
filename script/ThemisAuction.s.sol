@@ -20,9 +20,9 @@ contract AuctionScript is Script {
         auction.setCollateralToken(GOERLI_USDC);
 
         auction.initialize(
-            uint64(1 hours),
+            uint64(5 minutes),
             uint64(2 hours),
-            uint128(5e6)
+            uint128(5e5)
         );
 
         vm.stopBroadcast();
